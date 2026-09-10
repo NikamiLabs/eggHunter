@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EggHonter</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; font-family: monospace; }
+    canvas { display: block; background: #000; }
+
+    #hint {
+      position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+      color: #333; font-size: 12px; letter-spacing: 0.07em;
+      pointer-events: none; user-select: none;
+    }
+    /* ---- HUD top bar ---- */
+    #hud {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 14px;
+      pointer-events: none; user-select: none;
+    }
+    #hud-label { color: #f9a825; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+    #health-bar-bg { width: 340px; height: 28px; background: #1a1a1a; border: 1px solid #444; border-radius: 14px; overflow: hidden; }
+    #health-bar-fill { height: 100%; width: 100%; background: linear-gradient(90deg,#27ae60,#2ecc71); border-radius: 14px; transition: width 0.12s; }
+
+    /* ---- Kids HUD (right side) ---- */
+    #kids-hud {
+      position: fixed; top: 14px; right: 18px;
+      display: flex; flex-direction: column; gap: 5px; align-items: flex-end;
+      pointer-events: none; user-select: none;
+    }
+    #kids-label { color: #ffcc44; font-size: 12px; letter-spacing: 0.07em; font-weight: bold; }
+    #kids-row { display: flex; gap: 6px; }
+    .kid-icon { font-size: 22px; line-height: 1; filter: drop-shadow(0 0 4px #ffcc44aa); }
+    .kid-icon.empty { opacity: 0.18; filter: none; }
+    #kids-hint { color: #666; font-size: 10px; letter-spacing: 0.05em; }
+
+    /* ---- Wave + currency HUD (left side) ---- */
+    #wave-hud {
+      position: fixed; top: 14px; left: 18px;
+      display: flex; flex-direction: column; gap: 6px;
+      pointer-events: none; user-select: none;
+    }
+    #wave-label { color: #ff6644; font-size: 13px; letter-spacing: 0.08em; font-weight: bold; }
+    #wave-bar-bg { width: 180px; height: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
+    #wave-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#ff4400,#ff9900); border-radius: 6px; transition: width 0.1s; }
+    #currency-row { display: flex; gap: 10px; margin-top: 2px; }
+    .curr-item { color: #eee; font-size: 12px; display: flex; align-items: center; gap: 3px; }
+    .curr-coin { color: #ffd700; }
+    .curr-diamond { color: #44ddff; }
+
+    /* ---- Inventory bar (bottom-center) ---- */
+    #inv-bar {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 10px; padding: 10px 16px;
+      background: rgba(0,0,0,0.88); border: 1px solid #3a3a3a; border-radius: 16px;
+      user-select: none;
+    }
+    .inv-slot {
+      width: 96px; height: 96px; border-radius: 14px; border: 2px solid #333;
+      background: #111; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 4px;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; position: relative;
+    }
+    .inv-slot:hover:not(.locked) { border-color: #888; background: #1c1c1c; }
+    .inv-slot.equipped { border-color: #f9a825 !important; background: #1a1100; box-shadow: 0 0 16px 3px #f9a82555; }
+    .inv-slot.locked { opacity: 0.28; cursor: default; filter: grayscale(1); }
+    .inv-slot .slot-icon { font-size: 36px; line-height: 1; }
+    .inv-slot .slot-name { font-size: 9px; color: #aaa; letter-spacing: 0.03em; text-align: center; line-height: 1.3; }
+    .inv-slot.equipped .slot-name { color: #f9a825; }
+    .inv-slot .slot-stars { font-size: 11px; letter-spacing: -1px; line-height: 1; }
+    .inv-slot.rarity-common  { border-color: #555; }
+    .inv-slot.rarity-rare    { border-color: #4488ff; }
+    .inv-slot.rarity-epic    { border-color: #aa44ff; }
+    .inv-slot.rarity-legend  { border-color: #ffd700; background: #110a00; }
+    .inv-slot.equipped.rarity-legend { background: #1c1200; }
+    /* Game over screen */
+    #gameover {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+      align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+      color: #fff; font-family: monospace;
+    }
+    #gameover.show { display: flex; }
+    #gameover h1 { font-size: 48px; color: #e74c3c; text-shadow: 0 0 20px #e74c3c88; }
+    #gameover p  { font-size: 16px; color: #aaa; }
+    #gameover button { padding: 12px 32px; background: #e74c3c; border: none; border-radius: 8px; color: #fff; font-size: 16px; font-family: monospace; cursor: pointer; }
+    #gameover button:hover { background: #c0392b; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hint">WASD move · SPACE attack · 1-4 switch weapon · E use kid</div>
+  <div id="hud">
+    <span id="hud-label">❤️ HP</span>
+    <div id="health-bar-bg"><div id="health-bar-fill"></div></div>
+  </div>
+  <div id="wave-hud">
+    <span id="wave-label">WAVE 1</span>
+    <div id="wave-bar-bg"><div id="wave-bar-fill"></div></div>
+    <div id="currency-row">
+      <span class="curr-item"><span class="curr-coin">🪙</span><span id="coin-count">0</span></span>
+      <span class="curr-item"><span class="curr-diamond">💎</span><span id="diamond-count">0</span></span>
+    </div>
+  </div>
+  <div id="kids-hud">
+    <span id="kids-label">🥚 KIDS</span>
+    <div id="kids-row"></div>
+    <span id="kids-hint">[ E ] use kid → heal</span>
+  </div>
+  <div id="inv-bar"></div>
+  <div id="gameover"><h1>💀 YOU DIED</h1><p id="gameover-stats"></p><button onclick="location.reload()">PLAY AGAIN</button></div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    // Resize canvas to fill window
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // --- Egg character state ---
+    const egg = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      speed: 4,
+      rx: 22, ry: 28,
+      bobAngle: 0, walkAngle: 0,
+      isMoving: false,
+      dirX: 0, dirY: 0,
+      squash: 1.0, squashTarget: 1.0,
+      hp: 300, maxHp: 300,
+      invincible: 0,   // frames of invincibility after hit
+    };
+
+    // --- HUD refs ---
+    const healthFill    = document.getElementById('health-bar-fill');
+    const invBarEl      = document.getElementById('inv-bar');
+    const waveLabel     = document.getElementById('wave-label');
+    const waveBarFill   = document.getElementById('wave-bar-fill');
+    const coinCountEl   = document.getElementById('coin-count');
+    const diamondCountEl= document.getElementById('diamond-count');
+    const gameoverEl    = document.getElementById('gameover');
+    const gameoverStats = document.getElementById('gameover-stats');
+    const kidsRowEl     = document.getElementById('kids-row');
+
+    // --- Currency ---
+    let coins    = 0;
+    let diamonds = 0;
+    let gameOver = false;
+
+    function addCoins(n)    { coins    += n; coinCountEl.textContent    = coins; }
+    function addDiamonds(n) { diamonds += n; diamondCountEl.textContent = diamonds; }
+
+    // =====================================================================
+    // KIDS SYSTEM
+    // =====================================================================
+    const MAX_KIDS = 3;
+    const KID_HEAL = 80;      // HP restored when consuming a kid
+    let kids = 0;             // how many kids the player is carrying
+
+    function renderKidsHUD() {
+      kidsRowEl.innerHTML = '';
+      for (let i = 0; i < MAX_KIDS; i++) {
+        const span = document.createElement('span');
+        span.className = 'kid-icon' + (i < kids ? '' : ' empty');
+        span.textContent = '🥚';
+        kidsRowEl.appendChild(span);
+      }
+    }
+    renderKidsHUD();
+
+    function addKid() {
+      if (kids < MAX_KIDS) { kids++; renderKidsHUD(); }
+    }
+
+    function useKid() {
+      if (kids <= 0 || egg.hp >= egg.maxHp) return;
+      kids--;
+      renderKidsHUD();
+      // Heal
+      egg.hp = Math.min(egg.maxHp, egg.hp + KID_HEAL);
+      // Burst of golden particles at egg position
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2;
+        deathParticles.push({
+          x: egg.x, y: egg.y,
+          vx: Math.cos(a) * (3 + Math.random() * 5),
+          vy: Math.sin(a) * (3 + Math.random() * 5),
+          life: 1.0, r: 4 + Math.random() * 5,
+          color: '#ffdd44',
+        });
+      }
+      kidHealFlash = 1.0;
+    }
+
+    let kidHealFlash = 0; // for on-screen heal text
+
+    // Kid companions (canvas-drawn mini-eggs orbiting player)
+    // These are purely visual — each represents one carried kid
+    const kidOrbiters = [];   // { angle, dist, bobAngle }
+    function syncKidOrbiters() {
+      // Add or remove orbiters to match kids count
+      while (kidOrbiters.length < kids) {
+        kidOrbiters.push({ angle: (kidOrbiters.length / MAX_KIDS) * Math.PI * 2, dist: 55 + kidOrbiters.length * 10, bobAngle: Math.random() * Math.PI * 2 });
+      }
+      while (kidOrbiters.length > kids) kidOrbiters.pop();
+    }
+    syncKidOrbiters();
+
+    function updateKidOrbiters(dt) {
+      syncKidOrbiters();
+      for (const k of kidOrbiters) {
+        k.angle    += 0.018 * dt;
+        k.bobAngle += 0.07 * dt;
+      }
+    }
+
+    function drawKidOrbiters() {
+      for (const k of kidOrbiters) {
+        const kx = egg.x + Math.cos(k.angle) * k.dist;
+        const ky = egg.y + Math.sin(k.angle) * k.dist + Math.sin(k.bobAngle) * 3;
+        ctx.save();
+        ctx.translate(kx, ky);
+
+        // tiny shadow
+        ctx.save();
+        ctx.scale(1, 0.25);
+        ctx.beginPath();
+        ctx.ellipse(0, 18, 10, 5, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fill();
+        ctx.restore();
+
+        // tiny egg body
+        const g = ctx.createRadialGradient(-3, -4, 1, 0, 0, 13);
+        g.addColorStop(0, '#fffde7');
+        g.addColorStop(0.5, '#fff9c4');
+        g.addColorStop(1, '#f9a825');
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 9, 12, 0, 0, Math.PI * 2);
+        ctx.fillStyle = g;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // tiny eyes
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath(); ctx.arc(-3.5, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 3.5, -3, 1.8, 0, Math.PI * 2); ctx.fill();
+        // eye shines
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-4, -3.5, 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 3, -3.5, 0.6, 0, Math.PI * 2); ctx.fill();
+
+        // tiny smile
+        ctx.beginPath();
+        ctx.arc(0, 3, 3.5, 0.2, Math.PI - 0.2);
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // glow ring
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,220,50,0.18)';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    // =====================================================================
+    // WAVE SYSTEM
+    // =====================================================================
+    const wave = {
+      number:   1,
+      killsNeeded: 10,
+      kills:    0,
+      phase: 'fighting',   // 'fighting' | 'boss' | 'intermission'
+      bossAlive: false,
+      intermissionTimer: 0,
+    };
+
+    function startWave(n) {
+      wave.number      = n;
+      wave.kills       = 0;
+      wave.killsNeeded = 8 + n * 4;
+      wave.phase       = 'fighting';
+      wave.bossAlive   = false;
+      waveLabel.textContent = `WAVE ${n}`;
+      monsters.length  = 0;
+      bullets.length   = 0;
+      // Scale monster difficulty
+      SPAWN_INTERVAL_CURRENT = Math.max(40, 120 - n * 8);
+      monsterSpeedMult       = 1 + (n - 1) * 0.18;
+      monsterHpMult          = Math.ceil(1 + (n - 1) * 0.5);
+    }
+
+    function onKill(m) {
+      // Currency drops
+      if (m.boss)        { addCoins(15); addDiamonds(3); }
+      else if (m.golden) { addCoins(5);  addDiamonds(1); }
+      else               { addCoins(1); }
+
+      // Kid drop: golden zombies have 40% chance, boss always drops one
+      if (m.boss || (m.golden && Math.random() < 0.4)) {
+        addKid();
+      }
+
+      if (wave.phase === 'fighting') {
+        wave.kills++;
+        const pct = Math.min(1, wave.kills / wave.killsNeeded);
+        waveBarFill.style.width = (pct * 100) + '%';
+        if (wave.kills >= wave.killsNeeded) {
+          wave.phase = 'boss';
+          spawnBoss();
+        }
+      } else if (wave.phase === 'boss' && m.boss) {
+        wave.bossAlive = false;
+        wave.phase     = 'intermission';
+        wave.intermissionTimer = 180; // ~3s
+        waveBarFill.style.width = '100%';
+        waveBarFill.style.background = 'linear-gradient(90deg,#ffd700,#fff)';
+      }
+    }
+
+    let SPAWN_INTERVAL_CURRENT = 120;
+    let monsterSpeedMult = 1;
+    let monsterHpMult    = 1;
+
+    // =====================================================================
+    // WEAPON DEFINITIONS
+    // =====================================================================
+    const WEAPONS = {
+      bomb_gun: {
+        id: 'bomb_gun', name: 'Bomb Gun', icon: '💣',
+        rarity: 'common', type: 'ranged',
+        desc: 'Explosive rounds. Area damage.',
+      },
+      rpg: {
+        id: 'rpg', name: 'RPG', icon: '🚀',
+        rarity: 'rare', type: 'ranged',
+        desc: 'Rocket launcher. Big blast.',
+      },
+      bazooka: {
+        id: 'bazooka', name: 'Bazooka', icon: '💥',
+        rarity: 'epic', type: 'ranged',
+        desc: 'Massive AOE explosion.',
+      },
+      sword: {
+        id: 'sword', name: 'Legendary Sword', icon: '⚔️',
+        rarity: 'legend', type: 'melee',
+        desc: 'Swing to slash all nearby enemies.',
+      },
+    };
+
+    // Weapon loot pool for golden zombie drops (excluding starting weapon)
+    const LOOT_POOL = ['rpg', 'bazooka', 'sword'];
+
+    // =====================================================================
+    // INVENTORY STATE
+    // =====================================================================
+    const inventory = {
+      // Fixed order: bomb_gun (always owned) → bazooka → rpg → sword
+      slots: [
+        { weapon: WEAPONS.bomb_gun, unlocked: true,  stars: 1 },
+        { weapon: WEAPONS.bazooka,  unlocked: false, stars: 0 },
+        { weapon: WEAPONS.rpg,      unlocked: false, stars: 0 },
+        { weapon: WEAPONS.sword,    unlocked: false, stars: 0 },
+      ],
+      equipped: 0,
+    };
+
+    function equippedWeapon() { return inventory.slots[inventory.equipped].weapon; }
+    function equippedStars()  { return inventory.slots[inventory.equipped].stars;  }
+    function isMaxStar()      { return equippedStars() >= 5; }
+
+    // Stars to display (filled ★ + empty ☆)
+    function starsLabel(n) {
+      return '★'.repeat(n) + '☆'.repeat(5 - n);
+    }
+
+    function grantWeapon(weaponId) {
+      // Already owned? → upgrade stars (max 5)
+      const existing = inventory.slots.find(s => s.weapon && s.weapon.id === weaponId);
+      if (existing) {
+        if (existing.stars < 5) {
+          existing.stars++;
+          renderInventory();
+          pickupFlash = {
+            text: WEAPONS[weaponId].icon + ' ' + WEAPONS[weaponId].name + ' ' + starsLabel(existing.stars),
+            life: 1.0, upgrade: true,
+          };
+        }
+        return;
+      }
+      // New weapon — find its fixed slot by weaponId and unlock it
+      const slot = inventory.slots.find(s => s.weapon && s.weapon.id === weaponId && !s.unlocked);
+      if (!slot) return;
+      slot.unlocked = true;
+      slot.stars    = 1;
+      // Auto-equip the newly unlocked weapon
+      inventory.equipped = inventory.slots.indexOf(slot);
+      renderInventory();
+      pickupFlash = { text: WEAPONS[weaponId].icon + ' ' + WEAPONS[weaponId].name + ' ★', life: 1.0, upgrade: false };
+    }
+
+    let pickupFlash = null;
+
+    function renderInventory() {
+      invBarEl.innerHTML = '';
+      inventory.slots.forEach((slot, i) => {
+        const div = document.createElement('div');
+        div.className = 'inv-slot';
+        // Always show weapon identity (even when locked)
+        div.classList.add('rarity-' + slot.weapon.rarity);
+        if (!slot.unlocked) {
+          div.classList.add('locked');
+          // Show greyed weapon icon so player knows what's coming
+          div.innerHTML = `<span class="slot-icon">${slot.weapon.icon}</span><span class="slot-name">${slot.weapon.name}</span><span class="slot-stars" style="color:#444">${starsLabel(0)}</span>`;
+        } else {
+          if (i === inventory.equipped) div.classList.add('equipped');
+          const maxed = slot.stars >= 5;
+          const starColor = maxed ? '#ffd700' : '#aaa';
+          div.innerHTML = `<span class="slot-icon">${slot.weapon.icon}</span><span class="slot-name">${slot.weapon.name}</span><span class="slot-stars" style="color:${starColor}">${starsLabel(slot.stars)}</span>`;
+          if (maxed) div.style.boxShadow = '0 0 14px 3px #ffd70077';
+          div.addEventListener('click', () => { inventory.equipped = i; renderInventory(); });
+        }
+        // Slot number badge
+        const num = document.createElement('span');
+        num.style.cssText = 'position:absolute;top:3px;left:5px;font-size:9px;color:#555;font-weight:bold;';
+        num.textContent = i + 1;
+        div.appendChild(num);
+        invBarEl.appendChild(div);
+      });
+    }
+    renderInventory();
+
+    // --- Input ---
+    const keys = {};
+    window.addEventListener('keydown', e => {
+      keys[e.key] = true;
+      // Prevent page scroll
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+    // --- Draw egg character ---
+    function drawEgg(x, y, walkAngle, bobY, squash) {
+      ctx.save();
+      ctx.translate(x, y + bobY);
+
+      // Squash/stretch transform
+      ctx.scale(1 / squash, squash);
+
+      // ---- Shadow ----
+      ctx.save();
+      ctx.scale(1, 0.25);
+      const shadowGrad = ctx.createRadialGradient(0, egg.ry * squash + 6, 2, 0, egg.ry * squash + 6, 28);
+      shadowGrad.addColorStop(0, 'rgba(255,255,255,0.08)');
+      shadowGrad.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.ellipse(0, egg.ry * squash + 6, 28, 14, 0, 0, Math.PI * 2);
+      ctx.fillStyle = shadowGrad;
+      ctx.fill();
+      ctx.restore();
+
+      // ---- Body ----
+      const bodyGrad = ctx.createRadialGradient(-6, -10, 4, 0, 0, egg.ry * 1.4);
+      bodyGrad.addColorStop(0, '#fffde7');
+      bodyGrad.addColorStop(0.5, '#fff9c4');
+      bodyGrad.addColorStop(1, '#f9a825');
+
+      ctx.beginPath();
+      ctx.ellipse(0, 0, egg.rx, egg.ry, 0, 0, Math.PI * 2);
+      ctx.fillStyle = bodyGrad;
+      ctx.fill();
+
+      // Body outline (subtle)
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // ---- Eyes ----
+      const eyeOffsetX = 9;
+      const eyeOffsetY = -7;
+      const eyeRadius = 6;
+      const pupilRadius = 3.2;
+
+      // Eye look direction
+      const lookX = egg.dirX * 2.5;
+      const lookY = egg.dirY * 2.5;
+
+      // Left eye white
+      ctx.beginPath();
+      ctx.arc(-eyeOffsetX, eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Left pupil — narrow/squinted: clip to bottom half of eye
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(-eyeOffsetX, eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.arc(-eyeOffsetX + lookX, eyeOffsetY + lookY + 1.5, pupilRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fill();
+      // shine
+      ctx.beginPath();
+      ctx.arc(-eyeOffsetX + lookX - 1, eyeOffsetY + lookY, 1.1, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.restore();
+
+      // Right eye white
+      ctx.beginPath();
+      ctx.arc(eyeOffsetX, eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Right pupil — squinted
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(eyeOffsetX, eyeOffsetY, eyeRadius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.beginPath();
+      ctx.arc(eyeOffsetX + lookX, eyeOffsetY + lookY + 1.5, pupilRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fill();
+      // shine
+      ctx.beginPath();
+      ctx.arc(eyeOffsetX + lookX - 1, eyeOffsetY + lookY, 1.1, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.restore();
+
+      // ---- Angry brows (V-shape, inward-slanting) ----
+      ctx.lineCap = 'round';
+      // Left brow: high outer edge, low inner edge → slopes down toward nose
+      ctx.beginPath();
+      ctx.moveTo(-eyeOffsetX - 7, eyeOffsetY - 9);   // outer (high)
+      ctx.lineTo(-eyeOffsetX + 4, eyeOffsetY - 5);   // inner (low)
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // Right brow: low inner edge, high outer edge
+      ctx.beginPath();
+      ctx.moveTo(eyeOffsetX - 4, eyeOffsetY - 5);    // inner (low)
+      ctx.lineTo(eyeOffsetX + 7, eyeOffsetY - 9);    // outer (high)
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // ---- Smug crooked grin ----
+      // Lower lip curve (wide asymmetric smile — left side higher, right side drops)
+      ctx.beginPath();
+      ctx.moveTo(-8, 8);
+      ctx.bezierCurveTo(-5, 13, 3, 14, 9, 9);
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Upper lip (flatter, slightly tilted)
+      ctx.beginPath();
+      ctx.moveTo(-8, 8);
+      ctx.bezierCurveTo(-4, 6, 3, 7, 9, 9);
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Teeth peeking through (one big slab, slightly tilted)
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(-6, 8.5);
+      ctx.bezierCurveTo(-3, 12, 2, 13, 7, 9.5);
+      ctx.lineTo(7, 9.5);
+      ctx.lineTo(-6, 8.5);
+      ctx.closePath();
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      // Tooth gap lines
+      ctx.beginPath();
+      ctx.moveTo(-1, 8.8);
+      ctx.lineTo(-0.5, 12);
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(3, 9.2);
+      ctx.lineTo(3.5, 12.2);
+      ctx.stroke();
+      ctx.restore();
+
+      // ---- Hands / Stubby arms ----
+      // Hands swing opposite on walk cycle
+      const leftSwing  = Math.sin(walkAngle) * 12;
+      const rightSwing = -Math.sin(walkAngle) * 12;
+
+      // Left arm
+      ctx.save();
+      ctx.translate(-egg.rx + 4, 4);
+      ctx.rotate((-0.6 + leftSwing * 0.05) * (Math.PI / 180) * 10);
+      // Arm
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-14, 8 + leftSwing * 0.3);
+      ctx.strokeStyle = '#f9a825';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      // Hand (circle)
+      ctx.beginPath();
+      ctx.arc(-14, 8 + leftSwing * 0.3, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#fffde7';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // Gun arm — only drawn when NOT using melee weapon
+      if (equippedWeapon() && equippedWeapon().type === 'melee') {
+        ctx.restore(); // close the main egg save
+        return;
+      }
+      const facingRight = egg.aimDX >= 0;
+      // Tilt up/down based on vertical aim component (capped so it never flips)
+      const tiltAngle = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
+
+      ctx.save();
+      // Pivot from the side the gun is on
+      ctx.translate(facingRight ? egg.rx - 2 : -(egg.rx - 2), 2);
+      // Mirror horizontally when facing left
+      if (!facingRight) ctx.scale(-1, 1);
+      // Apply vertical tilt
+      ctx.rotate(tiltAngle);
+
+      // Arm segment
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(12, 0);
+      ctx.strokeStyle = '#f9a825';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Gun body — shape depends on equipped weapon
+      ctx.save();
+      ctx.translate(14, 0);
+      const wid = equippedWeapon() ? equippedWeapon().id : 'bomb_gun';
+
+      if (wid === 'rpg') {
+        // ---- RPG: long green tube on the shoulder ----
+        // Main tube body
+        ctx.fillStyle = '#4a7c3f';
+        ctx.beginPath();
+        ctx.roundRect(-2, -5, 38, 10, 3);
+        ctx.fill();
+        // Tube highlight
+        ctx.fillStyle = '#6aad5a';
+        ctx.beginPath();
+        ctx.roundRect(-1, -4, 36, 4, 2);
+        ctx.fill();
+        // Back exhaust cone
+        ctx.fillStyle = '#2a4a28';
+        ctx.beginPath();
+        ctx.moveTo(-2, -5); ctx.lineTo(-10, -3); ctx.lineTo(-10, 3); ctx.lineTo(-2, 5);
+        ctx.closePath(); ctx.fill();
+        // Front launcher mouth (wide ring)
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.roundRect(34, -6, 6, 12, 2);
+        ctx.fill();
+        ctx.fillStyle = '#555';
+        ctx.beginPath();
+        ctx.arc(37, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(37, 0, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Grip / trigger guard
+        ctx.fillStyle = '#2a4a28';
+        ctx.beginPath();
+        ctx.roundRect(8, 5, 5, 10, 2);
+        ctx.fill();
+        // Sight on top
+        ctx.fillStyle = '#222';
+        ctx.beginPath();
+        ctx.roundRect(14, -9, 8, 4, 1);
+        ctx.fill();
+        ctx.fillStyle = '#ff3333';
+        ctx.beginPath();
+        ctx.arc(22, -7, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (wid === 'bazooka') {
+        // ---- Bazooka: fat wide orange/metal tube ----
+        ctx.fillStyle = '#8B4513';
+        ctx.beginPath();
+        ctx.roundRect(-3, -7, 42, 14, 4);
+        ctx.fill();
+        ctx.fillStyle = '#a0522d';
+        ctx.beginPath();
+        ctx.roundRect(-2, -6, 40, 6, 3);
+        ctx.fill();
+        // Metal bands
+        ['#666','#777','#666'].forEach((c, i) => {
+          ctx.fillStyle = c;
+          ctx.beginPath();
+          ctx.roundRect(4 + i * 11, -7, 4, 14, 1);
+          ctx.fill();
+        });
+        // Muzzle bell (wider opening)
+        ctx.fillStyle = '#444';
+        ctx.beginPath();
+        ctx.ellipse(40, 0, 5, 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.ellipse(40, 0, 3, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Back vent
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.moveTo(-3, -7); ctx.lineTo(-12, -4); ctx.lineTo(-12, 4); ctx.lineTo(-3, 7);
+        ctx.closePath(); ctx.fill();
+        // Handle
+        ctx.fillStyle = '#5a2d0c';
+        ctx.beginPath();
+        ctx.roundRect(12, 7, 6, 12, 2);
+        ctx.fill();
+      } else {
+        // ---- Bomb Gun (default pistol) ----
+        ctx.fillStyle = '#222';
+        ctx.beginPath();
+        ctx.roundRect(-2, 1, 6, 9, 2);
+        ctx.fill();
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.roundRect(-1, -4, 16, 5, 2);
+        ctx.fill();
+        ctx.fillStyle = '#555';
+        ctx.beginPath();
+        ctx.roundRect(0, -3, 14, 2, 1);
+        ctx.fill();
+        ctx.fillStyle = '#444';
+        ctx.beginPath();
+        ctx.roundRect(14, -5, 4, 7, 1);
+        ctx.fill();
+      }
+
+      // Muzzle flash (when firing)
+      if (egg.muzzleFlash > 0) {
+        const f = egg.muzzleFlash;
+        const flashX = wid === 'rpg' ? 43 : wid === 'bazooka' ? 45 : 20;
+        ctx.save();
+        ctx.translate(flashX, 0);
+        const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, 18 * f);
+        grd.addColorStop(0, `rgba(255,240,100,${f})`);
+        grd.addColorStop(0.4, `rgba(255,140,0,${f * 0.8})`);
+        grd.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.arc(0, 0, 18 * f, 0, Math.PI * 2);
+        ctx.fillStyle = grd;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255,220,50,${f})`;
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        for (let s = 0; s < 6; s++) {
+          const a = (s / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(a) * 12 * f, Math.sin(a) * 12 * f);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      ctx.restore(); // gun body
+      ctx.restore(); // arm
+
+      // ---- Feet ----
+      const leftFoot  = Math.sin(walkAngle) * 5;
+      const rightFoot = -Math.sin(walkAngle) * 5;
+
+      // Left foot
+      ctx.save();
+      ctx.translate(-10, egg.ry - 2);
+      ctx.rotate(leftFoot * 0.08);
+      ctx.beginPath();
+      ctx.ellipse(0, 6, 7, 5, 0.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#f9a825';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      // Right foot
+      ctx.save();
+      ctx.translate(10, egg.ry - 2);
+      ctx.rotate(rightFoot * 0.08);
+      ctx.beginPath();
+      ctx.ellipse(0, 6, 7, 5, -0.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#f9a825';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // =====================================================================
+    // SWORD SWING
+    // =====================================================================
+    const sword = { swinging: false, angle: 0, baseAngle: 0, timer: 0 };
+    const SWORD_RANGE = 90;
+    const SWORD_ARC   = Math.PI * 1.1;
+
+    function swordSwing() {
+      if (sword.swinging) return;
+      sword.swinging = true;
+      sword.timer    = 0;
+      const facingRight = egg.aimDX >= 0;
+      const tiltAngle   = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
+      sword.baseAngle   = facingRight ? tiltAngle : Math.PI - tiltAngle;
+      sword.angle       = sword.baseAngle - SWORD_ARC / 2;
+      const maxed       = isMaxStar();
+      // 5-star: range is much larger
+      const range = maxed ? SWORD_RANGE * 2.5 : SWORD_RANGE;
+      for (let j = monsters.length - 1; j >= 0; j--) {
+        const m = monsters[j];
+        const dx = m.x - egg.x, dy = m.y - egg.y;
+        if (Math.sqrt(dx*dx + dy*dy) < range + m.r) {
+          let diff = Math.atan2(dy, dx) - sword.baseAngle;
+          while (diff >  Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          if (Math.abs(diff) < SWORD_ARC / 2 + 0.2) {
+            if (maxed) {
+              // Insta-kill at 5 stars
+              if (m.golden) dropWeaponAt(m.x, m.y);
+              spawnDeathParticles(m.x, m.y, m.color);
+              spawnDeathParticles(m.x, m.y, '#ffd700');
+              onKill(m);
+              monsters.splice(j, 1);
+            } else {
+              m.hp--;
+              if (m.hp <= 0) {
+                if (m.golden) dropWeaponAt(m.x, m.y);
+                spawnDeathParticles(m.x, m.y, m.color);
+                onKill(m);
+                monsters.splice(j, 1);
+              } else {
+                m.hitFlash = 1.0;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function updateSword(dt) {
+      if (!sword.swinging) return;
+      sword.timer += dt * 0.1;
+      sword.angle  = sword.baseAngle - SWORD_ARC / 2 + SWORD_ARC * Math.min(sword.timer, 1);
+      if (sword.timer >= 1) sword.swinging = false;
+    }
+
+    function drawSwordArm() {
+      const facingRight = egg.aimDX >= 0;
+      const tiltAngle   = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
+      ctx.save();
+      ctx.translate(egg.x, egg.y);
+
+      if (sword.swinging) {
+        const startA = sword.baseAngle - SWORD_ARC / 2;
+        ctx.beginPath(); ctx.moveTo(0, 0);
+        ctx.arc(0, 0, SWORD_RANGE, startA, sword.angle);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255,215,0,0.09)'; ctx.fill();
+
+        ctx.save(); ctx.rotate(sword.angle);
+        ctx.beginPath(); ctx.moveTo(egg.rx - 4, 2); ctx.lineTo(egg.rx + 10, 2);
+        ctx.strokeStyle = '#f9a825'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(egg.rx + 10, 0); ctx.lineTo(egg.rx + 55, -4);
+        ctx.strokeStyle = '#c8c8ff'; ctx.lineWidth = 4; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(egg.rx + 12, -8); ctx.lineTo(egg.rx + 12, 9);
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 5; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(egg.rx + 15, -2); ctx.lineTo(egg.rx + 48, -3);
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.translate(facingRight ? egg.rx - 2 : -(egg.rx - 2), 2);
+        if (!facingRight) ctx.scale(-1, 1);
+        ctx.rotate(tiltAngle);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(12,0);
+        ctx.strokeStyle = '#f9a825'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(50, -3);
+        ctx.strokeStyle = '#c8c8ff'; ctx.lineWidth = 3.5; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(14, -7); ctx.lineTo(14, 8);
+        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 4; ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // =====================================================================
+    // WEAPON DROPS (from golden zombies)
+    // =====================================================================
+    const drops = []; // { x, y, weaponId, bobAngle, life }
+
+    function dropWeaponAt(x, y) {
+      const id = LOOT_POOL[Math.floor(Math.random() * LOOT_POOL.length)];
+      drops.push({ x, y, weaponId: id, bobAngle: 0, life: 1.0 });
+    }
+
+    function updateDrops(dt) {
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i];
+        d.bobAngle += 0.05 * dt;
+        d.life -= 0.002 * dt; // fade very slowly
+        // Pickup if player walks over it
+        const dx = egg.x - d.x, dy = egg.y - d.y;
+        if (Math.sqrt(dx*dx + dy*dy) < egg.rx + 18) {
+          grantWeapon(d.weaponId);
+          drops.splice(i, 1);
+        }
+      }
+    }
+
+    function drawDrops() {
+      for (const d of drops) {
+        const bobY = Math.sin(d.bobAngle) * 5;
+        const w = WEAPONS[d.weaponId];
+        ctx.save();
+        ctx.translate(d.x, d.y + bobY);
+        // Glow
+        const grd = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
+        const gc = w.rarity === 'legend' ? '255,215,0' : w.rarity === 'epic' ? '180,80,255' : '80,150,255';
+        grd.addColorStop(0, `rgba(${gc},0.35)`);
+        grd.addColorStop(1, 'transparent');
+        ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.fillStyle = grd; ctx.fill();
+        // Icon
+        ctx.font = '20px serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(w.icon, 0, 0);
+        // Label
+        ctx.font = '8px monospace';
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText(w.name, 0, 16);
+        ctx.restore();
+      }
+    }
+
+    // =====================================================================
+    // BULLETS
+    // =====================================================================
+    const bullets = [];
+
+    function shootBullet() {
+      const w = equippedWeapon();
+      if (!w) return;
+      if (w.type === 'melee') { swordSwing(); return; }
+
+      const facingRight = egg.aimDX >= 0;
+      const tiltAngle   = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
+      const fireAngle   = facingRight ? tiltAngle : Math.PI - tiltAngle;
+      const armPivotX   = egg.x + (facingRight ? egg.rx - 2 : -(egg.rx - 2));
+      const armPivotY   = egg.y + 2;
+      const bx = armPivotX + Math.cos(fireAngle) * 32;
+      const by = armPivotY + Math.sin(fireAngle) * 32;
+      const speed  = w.id === 'rpg' ? 18 : w.id === 'bazooka' ? 10 : 14;
+      const radius = w.id === 'rpg' ? 150 : w.id === 'bazooka' ? 210 : 110;
+      bullets.push({ x: bx, y: by,
+        vx: Math.cos(fireAngle) * speed,
+        vy: Math.sin(fireAngle) * speed,
+        life: 1.0, dist: 0, bomb: true,
+        weaponId: w.id, blastRadius: radius,
+      });
+      egg.muzzleFlash = 1.0;
+      egg.recoil = 1.0;
+    }
+
+    const BOMB_RADIUS = 110; // fallback
+
+    function explodeBomb(bx, by, radius) {
+      const r = radius || BOMB_RADIUS;
+      // 5-star: blast radius doubles
+      const maxed    = isMaxStar();
+      const effectR  = maxed ? r * 2 : r;
+      for (let j = monsters.length - 1; j >= 0; j--) {
+        const m = monsters[j];
+        const dx = bx - m.x, dy = by - m.y;
+        if (Math.sqrt(dx*dx + dy*dy) < effectR + m.r) {
+          if (maxed) {
+            // Insta-kill
+            if (m.golden) dropWeaponAt(m.x, m.y);
+            spawnDeathParticles(m.x, m.y, m.color);
+            spawnDeathParticles(m.x, m.y, '#ffd700');
+            onKill(m);
+            monsters.splice(j, 1);
+          } else {
+            m.hp--;
+            if (m.hp <= 0) {
+              if (m.golden) dropWeaponAt(m.x, m.y);
+              spawnDeathParticles(m.x, m.y, m.color);
+              onKill(m);
+              monsters.splice(j, 1);
+            } else {
+              m.hitFlash = 1.0;
+            }
+          }
+        }
+      }
+      // Big explosion particle burst
+      for (let i = 0; i < 28; i++) {
+        const a = (i / 28) * Math.PI * 2;
+        const spd = 3 + Math.random() * 7;
+        deathParticles.push({
+          x: bx, y: by,
+          vx: Math.cos(a) * spd,
+          vy: Math.sin(a) * spd,
+          life: 1.0,
+          r: 5 + Math.random() * 8,
+          color: ['#ff6600','#ffcc00','#ff3300'][Math.floor(Math.random()*3)],
+        });
+      }
+      // Shockwave ring stored separately
+      shockwaves.push({ x: bx, y: by, r: 10, life: 1.0 });
+    }
+
+    // Shockwave rings
+    const shockwaves = [];
+    function updateShockwaves(dt) {
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const s = shockwaves[i];
+        s.r += 6 * dt;
+        s.life -= 0.06 * dt;
+        if (s.life <= 0) shockwaves.splice(i, 1);
+      }
+    }
+    function drawShockwaves() {
+      for (const s of shockwaves) {
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,200,50,${s.life * 0.7})`;
+        ctx.lineWidth = 3 * s.life;
+        ctx.stroke();
+        // Second ring slightly smaller
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r * 0.65, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,100,0,${s.life * 0.4})`;
+        ctx.lineWidth = 2 * s.life;
+        ctx.stroke();
+      }
+    }
+
+    function updateBullets(dt) {
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        const step = Math.sqrt(b.vx * b.vx + b.vy * b.vy) * dt;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        b.dist += step;
+        b.life -= 0.018 * dt;
+        if (b.life <= 0 || b.x < -20 || b.x > canvas.width + 20 || b.y < -20 || b.y > canvas.height + 20) {
+          if (b.bomb) explodeBomb(b.x, b.y, b.blastRadius);
+          bullets.splice(i, 1);
+          continue;
+        }
+        // Hit monsters
+        let hit = false;
+        for (let j = monsters.length - 1; j >= 0; j--) {
+          const m = monsters[j];
+          const dx = b.x - m.x, dy = b.y - m.y;
+          if (Math.sqrt(dx*dx + dy*dy) < m.r + (b.bomb ? 14 : 8)) {
+            if (b.bomb) {
+              explodeBomb(b.x, b.y, b.blastRadius);
+            } else {
+              spawnDeathParticles(m.x, m.y, m.color);
+              monsters.splice(j, 1);
+            }
+            bullets.splice(i, 1);
+            hit = true;
+            break;
+          }
+        }
+      }
+    }
+
+    function drawBullets() {
+      for (const b of bullets) {
+        const growScale = Math.min(1, b.dist / 600);
+
+        if (b.weaponId === 'rpg' || b.weaponId === 'bazooka') {
+          // ---- Rocket projectile ----
+          const isRpg = b.weaponId === 'rpg';
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(Math.atan2(b.vy, b.vx));
+
+          // Fire exhaust trail
+          const trailLen = isRpg ? 30 + growScale * 20 : 40 + growScale * 30;
+          const trailGrd = ctx.createLinearGradient(-trailLen, 0, 0, 0);
+          trailGrd.addColorStop(0, 'transparent');
+          trailGrd.addColorStop(0.5, `rgba(255,100,0,${b.life * 0.5})`);
+          trailGrd.addColorStop(1, `rgba(255,220,50,${b.life * 0.9})`);
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          // Wavy trail
+          for (let t = 0; t <= 1; t += 0.1) {
+            const tx = -trailLen * t;
+            const ty = Math.sin(t * Math.PI * 3 + b.dist * 0.3) * (isRpg ? 3 : 5) * t;
+            t === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
+          }
+          ctx.lineWidth = isRpg ? 6 : 9;
+          ctx.strokeStyle = trailGrd;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+
+          // Rocket body
+          const bodyLen = isRpg ? 22 : 30;
+          const bodyH   = isRpg ? 5  : 8;
+          ctx.fillStyle = isRpg ? '#555' : '#8B4513';
+          ctx.beginPath();
+          ctx.roundRect(-bodyLen * 0.6, -bodyH / 2, bodyLen, bodyH, bodyH * 0.3);
+          ctx.fill();
+          ctx.fillStyle = isRpg ? '#777' : '#a0522d';
+          ctx.beginPath();
+          ctx.roundRect(-bodyLen * 0.6, -bodyH / 2, bodyLen * 0.7, bodyH * 0.5, 2);
+          ctx.fill();
+
+          // Nose cone
+          ctx.fillStyle = isRpg ? '#cc3300' : '#cc6600';
+          ctx.beginPath();
+          const noseX = bodyLen * 0.4;
+          ctx.moveTo(noseX, 0);
+          ctx.lineTo(noseX - bodyLen * 0.3, -bodyH / 2);
+          ctx.lineTo(noseX - bodyLen * 0.3,  bodyH / 2);
+          ctx.closePath();
+          ctx.fill();
+
+          // Fins (back)
+          ctx.fillStyle = isRpg ? '#333' : '#5a2d0c';
+          const finX = -bodyLen * 0.55;
+          [[-bodyH, -bodyH * 1.6], [bodyH * 0.1, bodyH * 1.6]].forEach(([y1, y2]) => {
+            ctx.beginPath();
+            ctx.moveTo(finX, y1);
+            ctx.lineTo(finX - bodyLen * 0.25, y2);
+            ctx.lineTo(finX + bodyLen * 0.15, y1);
+            ctx.closePath();
+            ctx.fill();
+          });
+
+          // Blast radius ring (faint dashed)
+          ctx.beginPath();
+          ctx.arc(0, 0, b.blastRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255,100,0,0.07)`;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 8]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.restore();
+
+        } else if (b.bomb) {
+          // ---- Bomb Gun: round dark casing ----
+          const r = 6 + growScale * 8;
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.fillStyle = '#222'; ctx.fill();
+          ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(-r * 0.3, -r * 0.3, r * 0.25, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fill();
+          ctx.beginPath();
+          ctx.arc(r * 0.5, -r * 0.7, 2 + Math.random() * 2, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,${150 + Math.random()*100|0},0,${b.life})`; ctx.fill();
+          ctx.beginPath();
+          ctx.arc(0, 0, b.blastRadius || BOMB_RADIUS, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255,100,0,0.1)`; ctx.lineWidth = 1;
+          ctx.setLineDash([4, 6]); ctx.stroke(); ctx.setLineDash([]);
+          ctx.restore();
+        } else {
+          // Normal bullet — glowing, grows
+          const headR = 3 + growScale * 9;
+          const tailLen = 10 + growScale * 30;
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(Math.atan2(b.vy, b.vx));
+          const grad = ctx.createLinearGradient(-tailLen, 0, headR, 0);
+          grad.addColorStop(0, 'transparent');
+          grad.addColorStop(1, `rgba(255,220,60,${b.life})`);
+          ctx.beginPath();
+          ctx.roundRect(-tailLen, -headR * 0.5, tailLen + headR, headR, headR * 0.4);
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(0, 0, headR, 0, Math.PI * 2);
+          const hgrad = ctx.createRadialGradient(0, 0, 0, 0, 0, headR);
+          hgrad.addColorStop(0, `rgba(255,255,180,${b.life})`);
+          hgrad.addColorStop(1, `rgba(255,180,0,${b.life * 0.6})`);
+          ctx.fillStyle = hgrad;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
+
+    // --- Monsters ---
+    const monsters = [];
+    let monsterSpawnTimer = 0;
+    const SPAWN_INTERVAL = 120; // base; overridden by SPAWN_INTERVAL_CURRENT
+
+    function spawnMonster() {
+      if (wave.phase !== 'fighting') return;
+      const y = 60 + Math.random() * (canvas.height - 120);
+      const isGolden = Math.random() < 0.25;
+      const colors = ['#6a0dad', '#c0392b', '#1a7a1a', '#1a4a8a'];
+      const color = isGolden ? '#d4a017' : colors[Math.floor(Math.random() * colors.length)];
+      const baseHp = isGolden ? 2 : 1;
+      monsters.push({
+        x: -30, y,
+        r: isGolden ? 22 + Math.random() * 6 : 18 + Math.random() * 10,
+        speed: (isGolden ? 0.9 + Math.random() * 0.8 : 1.2 + Math.random() * 1.4) * monsterSpeedMult,
+        color, bobAngle: Math.random() * Math.PI * 2,
+        hp: baseHp * monsterHpMult, maxHp: baseHp * monsterHpMult,
+        golden: isGolden, boss: false, hitFlash: 0,
+      });
+    }
+
+    function spawnBoss() {
+      wave.bossAlive = true;
+      const y = canvas.height / 2;
+      const bossColors = ['#8B0000','#4B0082','#006400','#00008B'];
+      const color = bossColors[(wave.number - 1) % bossColors.length];
+      const hp = (5 + wave.number * 3) * monsterHpMult;
+      monsters.push({
+        x: -60, y,
+        r: 45 + wave.number * 4,
+        speed: (0.6 + wave.number * 0.1) * monsterSpeedMult,
+        color, bobAngle: 0,
+        hp, maxHp: hp,
+        golden: false, boss: true, hitFlash: 0,
+      });
+    }
+
+    function updateMonsters(dt) {
+      monsterSpawnTimer += dt;
+      if (monsterSpawnTimer >= SPAWN_INTERVAL_CURRENT) {
+        monsterSpawnTimer = 0;
+        spawnMonster();
+      }
+
+      for (const m of monsters) {
+        const dx = egg.x - m.x, dy = egg.y - m.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        m.x += (dx / dist) * m.speed * dt;
+        m.y += (dy / dist) * m.speed * dt;
+        m.bobAngle += 0.08 * dt;
+        if (m.hitFlash > 0) m.hitFlash = Math.max(0, m.hitFlash - 0.08 * dt);
+      }
+    }
+
+    function drawMonster(m) {
+      const bob = Math.sin(m.bobAngle) * 2;
+      ctx.save();
+      ctx.translate(m.x, m.y + bob);
+
+      // ---- Waving arms (drawn behind body) ----
+      ctx.lineCap = 'round';
+      const leftWave  =  Math.sin(m.bobAngle * 2.5) * 0.7;  // different freq = natural wave
+      const rightWave = -Math.sin(m.bobAngle * 2.5 + 1) * 0.7;
+
+      // Left arm
+      ctx.save();
+      ctx.translate(-m.r * 0.85, -m.r * 0.1);
+      ctx.rotate(leftWave - 0.5);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-m.r * 0.7, -m.r * 0.5);
+      ctx.strokeStyle = m.color;
+      ctx.lineWidth = m.r * 0.35;
+      ctx.stroke();
+      // Left hand
+      ctx.beginPath();
+      ctx.arc(-m.r * 0.7, -m.r * 0.5, m.r * 0.22, 0, Math.PI * 2);
+      ctx.fillStyle = lighten(m.color);
+      ctx.fill();
+      ctx.restore();
+
+      // Right arm
+      ctx.save();
+      ctx.translate(m.r * 0.85, -m.r * 0.1);
+      ctx.rotate(rightWave + 0.5);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(m.r * 0.7, -m.r * 0.5);
+      ctx.strokeStyle = m.color;
+      ctx.lineWidth = m.r * 0.35;
+      ctx.stroke();
+      // Right hand
+      ctx.beginPath();
+      ctx.arc(m.r * 0.7, -m.r * 0.5, m.r * 0.22, 0, Math.PI * 2);
+      ctx.fillStyle = lighten(m.color);
+      ctx.fill();
+      ctx.restore();
+
+      // ---- Body ----
+      // Hit flash: overlay white when hitFlash > 0
+      const bodyColor1 = m.hitFlash > 0
+        ? `rgba(255,255,255,${m.hitFlash})`
+        : lighten(m.color);
+      const bodyColor2 = m.hitFlash > 0
+        ? `rgba(220,220,220,${m.hitFlash})`
+        : m.color;
+
+      const grad = ctx.createRadialGradient(-m.r * 0.3, -m.r * 0.3, 2, 0, 0, m.r * 1.3);
+      grad.addColorStop(0, bodyColor1);
+      grad.addColorStop(1, bodyColor2);
+      ctx.beginPath();
+      ctx.arc(0, 0, m.r, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = m.golden ? 'rgba(180,130,0,0.7)' : 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = m.golden ? 2.5 : 1.5;
+      ctx.stroke();
+
+      // Golden crown
+      if (m.golden) {
+        ctx.save();
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#b8860b';
+        ctx.lineWidth = 1;
+        const cy = -m.r - 2;
+        const cw = m.r * 0.9;
+        // Crown base band
+        ctx.beginPath();
+        ctx.roundRect(-cw, cy - 4, cw * 2, 5, 2);
+        ctx.fill();
+        ctx.stroke();
+        // Three crown points
+        [- cw * 0.7, 0, cw * 0.7].forEach((px, i) => {
+          const h = i === 1 ? 10 : 7; // middle point taller
+          ctx.beginPath();
+          ctx.moveTo(px - cw * 0.25, cy - 3);
+          ctx.lineTo(px, cy - 3 - h);
+          ctx.lineTo(px + cw * 0.25, cy - 3);
+          ctx.fillStyle = '#ffd700';
+          ctx.fill();
+          ctx.strokeStyle = '#b8860b';
+          ctx.stroke();
+        });
+        // Small gem on middle point
+        ctx.beginPath();
+        ctx.arc(0, cy - 11, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ff4444';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // Eyes (two angry red dots)
+      ctx.fillStyle = '#ff2222';
+      ctx.beginPath();
+      ctx.arc(-m.r * 0.28, -m.r * 0.15, m.r * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc( m.r * 0.28, -m.r * 0.15, m.r * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      // Eye glow
+      ctx.fillStyle = 'rgba(255,255,100,0.7)';
+      ctx.beginPath();
+      ctx.arc(-m.r * 0.28, -m.r * 0.15, m.r * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc( m.r * 0.28, -m.r * 0.15, m.r * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Jagged mouth
+      ctx.beginPath();
+      ctx.moveTo(-m.r * 0.4, m.r * 0.2);
+      ctx.lineTo(-m.r * 0.2, m.r * 0.38);
+      ctx.lineTo(0,           m.r * 0.22);
+      ctx.lineTo( m.r * 0.2, m.r * 0.38);
+      ctx.lineTo( m.r * 0.4, m.r * 0.2);
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // Boss HP bar
+      if (m.boss) {
+        const barW = m.r * 2.5;
+        const barH = 8;
+        const bx = -barW / 2;
+        const by = -m.r - 22;
+        ctx.fillStyle = '#330000';
+        ctx.beginPath();
+        ctx.roundRect(bx, by, barW, barH, 3);
+        ctx.fill();
+        const pct = m.hp / m.maxHp;
+        ctx.fillStyle = pct > 0.5 ? '#cc0000' : pct > 0.25 ? '#ff6600' : '#ff0000';
+        ctx.beginPath();
+        ctx.roundRect(bx, by, barW * pct, barH, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#660000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, barW, barH, 3);
+        ctx.stroke();
+        ctx.font = 'bold 9px monospace';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${m.hp}/${m.maxHp}`, 0, by + barH / 2);
+      }
+
+      ctx.restore();
+    }
+
+    function drawMonsters() {
+      for (const m of monsters) drawMonster(m);
+    }
+
+    // Death burst particles
+    const deathParticles = [];
+    function spawnDeathParticles(x, y, color) {
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        deathParticles.push({
+          x, y,
+          vx: Math.cos(a) * (2 + Math.random() * 4),
+          vy: Math.sin(a) * (2 + Math.random() * 4),
+          life: 1.0,
+          r: 3 + Math.random() * 4,
+          color,
+        });
+      }
+    }
+
+    function updateDeathParticles(dt) {
+      for (let i = deathParticles.length - 1; i >= 0; i--) {
+        const p = deathParticles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vx *= 0.92;
+        p.vy *= 0.92;
+        p.life -= 0.04 * dt;
+        if (p.life <= 0) deathParticles.splice(i, 1);
+      }
+    }
+
+    function drawDeathParticles() {
+      for (const p of deathParticles) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Utility: lighten a hex color
+    function lighten(hex) {
+      const r = Math.min(255, parseInt(hex.slice(1,3),16) + 80);
+      const g = Math.min(255, parseInt(hex.slice(3,5),16) + 80);
+      const b = Math.min(255, parseInt(hex.slice(5,7),16) + 80);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    // --- Particle trail ---
+    const particles = [];
+    function spawnParticle(x, y) {
+      particles.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y: y + egg.ry,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: -(Math.random() * 1.5 + 0.5),
+        life: 1.0,
+        r: Math.random() * 3 + 1.5,
+      });
+    }
+
+    function updateParticles() {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.04;
+        p.life -= 0.035;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function drawParticles() {
+      for (const p of particles) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(249, 168, 37, ${p.life * 0.5})`;
+        ctx.fill();
+      }
+    }
+
+    // --- Subtle grid background ---
+    function drawBackground() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Very faint dot grid
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      const spacing = 40;
+      for (let x = spacing; x < canvas.width; x += spacing) {
+        for (let y = spacing; y < canvas.height; y += spacing) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // --- Input: shoot + slot keys ---
+    window.addEventListener('keydown', e => {
+      if (e.key === ' ' && !e.repeat) {
+        e.preventDefault();
+        shootBullet();
+      }
+      // E: use kid to heal
+      if ((e.key === 'e' || e.key === 'E') && !e.repeat) {
+        useKid();
+      }
+      // 1-4: equip slot
+      if (['1','2','3','4'].includes(e.key)) {
+        const idx = parseInt(e.key) - 1;
+        if (inventory.slots[idx] && inventory.slots[idx].unlocked) {
+          inventory.equipped = idx;
+          renderInventory();
+        }
+      }
+    });
+
+    // --- Game loop ---
+    let lastTime = 0;
+    function loop(timestamp) {
+      const dt = Math.min((timestamp - lastTime) / 16.67, 3); // normalize to 60fps
+      lastTime = timestamp;
+
+      // --- Game over ---
+      if (gameOver) {
+        drawBackground();
+        return;
+      }
+      if (egg.hp <= 0 && !gameOver) {
+        gameOver = true;
+        gameoverStats.textContent = `Wave ${wave.number} · ${coins} coins · ${diamonds} diamonds`;
+        gameoverEl.classList.add('show');
+        return;
+      }
+
+      // --- Wave intermission countdown ---
+      if (wave.phase === 'intermission') {
+        wave.intermissionTimer -= dt;
+        if (wave.intermissionTimer <= 0) {
+          waveBarFill.style.background = 'linear-gradient(90deg,#ff4400,#ff9900)';
+          waveBarFill.style.width = '0%';
+          startWave(wave.number + 1);
+        }
+      }
+
+      // Input
+      let dx = 0, dy = 0;
+      if (keys['ArrowLeft']  || keys['a'] || keys['A']) dx -= 1;
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) dx += 1;
+      if (keys['ArrowUp']    || keys['w'] || keys['W']) dy -= 1;
+      if (keys['ArrowDown']  || keys['s'] || keys['S']) dy += 1;
+
+      // Normalize diagonal
+      if (dx !== 0 && dy !== 0) {
+        const len = Math.sqrt(dx * dx + dy * dy);
+        dx /= len;
+        dy /= len;
+      }
+
+      egg.isMoving = dx !== 0 || dy !== 0;
+
+      // Move
+      if (egg.isMoving) {
+        egg.x += dx * egg.speed * dt;
+        egg.y += dy * egg.speed * dt;
+        egg.dirX = dx;
+        egg.dirY = dy;
+        egg.walkAngle += 0.15 * dt;
+        egg.squashTarget = 0.92;
+        // Clamp to canvas
+        egg.x = Math.max(egg.rx + 20, Math.min(canvas.width - egg.rx - 20, egg.x));
+        egg.y = Math.max(egg.ry + 20, Math.min(canvas.height - egg.ry - 20, egg.y));
+        // Particle trail
+        if (Math.random() < 0.3 * dt) spawnParticle(egg.x, egg.y);
+      } else {
+        egg.squashTarget = 1.0;
+        // Idle bob
+        egg.bobAngle += 0.04 * dt;
+      }
+
+      // Smooth squash
+      egg.squash += (egg.squashTarget - egg.squash) * 0.15 * dt;
+
+      // Bob offset (idle)
+      const bobY = egg.isMoving ? 0 : Math.sin(egg.bobAngle) * 3;
+
+      // Update aim direction from movement, keep last known when idle
+      if (egg.isMoving) {
+        egg.aimDX = dx;
+        egg.aimDY = dy;
+      }
+
+      // Decay muzzle flash and recoil
+      egg.muzzleFlash = Math.max(0, egg.muzzleFlash - 0.12 * dt);
+      egg.recoil      = Math.max(0, egg.recoil      - 0.1  * dt);
+
+      // --- Monster touch damage to player ---
+      if (egg.invincible > 0) {
+        egg.invincible -= dt;
+      } else {
+        for (const m of monsters) {
+          const dx = egg.x - m.x, dy = egg.y - m.y;
+          if (Math.sqrt(dx*dx + dy*dy) < egg.rx + m.r - 4) {
+            egg.hp = Math.max(0, egg.hp - 8);
+            egg.invincible = 45;
+            egg.squashTarget = 1.3;
+            break;
+          }
+        }
+      }
+      // Update health bar
+      healthFill.style.width = (egg.hp / egg.maxHp * 100) + '%';
+      const hpPct = egg.hp / egg.maxHp;
+      healthFill.style.background = hpPct > 0.5
+        ? 'linear-gradient(90deg,#27ae60,#2ecc71)'
+        : hpPct > 0.25
+          ? 'linear-gradient(90deg,#e67e22,#f39c12)'
+          : 'linear-gradient(90deg,#c0392b,#e74c3c)';
+
+      updateParticles();
+      updateBullets(dt);
+      updateMonsters(dt);
+      updateDeathParticles(dt);
+      updateShockwaves(dt);
+      updateDrops(dt);
+      updateSword(dt);
+      updateKidOrbiters(dt);
+      if (pickupFlash) {
+        pickupFlash.life -= 0.02 * dt;
+        if (pickupFlash.life <= 0) pickupFlash = null;
+      }
+      if (kidHealFlash > 0) kidHealFlash = Math.max(0, kidHealFlash - 0.03 * dt);
+
+      // Draw
+      drawBackground();
+      drawKidOrbiters();
+      drawDrops();
+      drawMonsters();
+      drawShockwaves();
+      drawBullets();
+      drawParticles();
+      drawDeathParticles();
+      // Sword arm drawn separately (outside egg transform)
+      if (equippedWeapon() && equippedWeapon().type === 'melee') drawSwordArm();
+      drawEgg(egg.x, egg.y, egg.walkAngle, bobY, egg.squash);
+
+      // Pickup flash overlay
+      if (pickupFlash && pickupFlash.life > 0) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, pickupFlash.life * 2);
+        ctx.font = 'bold 22px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // Upgrade = purple glow, new pickup = gold
+        const flashCol = pickupFlash.upgrade ? '#cc88ff' : '#ffd700';
+        ctx.fillStyle = flashCol;
+        ctx.shadowColor = flashCol;
+        ctx.shadowBlur = 16;
+        // Maxed (5 stars) gets extra SIZE
+        const txt = '✦ ' + pickupFlash.text + ' ✦';
+        const isMax = pickupFlash.text.includes('★★★★★');
+        ctx.font = `bold ${isMax ? 28 : 22}px monospace`;
+        if (isMax) {
+          ctx.shadowBlur = 30;
+          ctx.shadowColor = '#ffd700';
+        }
+        ctx.fillText(txt, canvas.width / 2, canvas.height / 2 - 80);
+        ctx.restore();
+      }
+
+      // Kid heal flash overlay
+      if (kidHealFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, kidHealFlash * 2);
+        ctx.font = 'bold 24px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffdd44';
+        ctx.shadowColor = '#ffdd44';
+        ctx.shadowBlur = 20;
+        ctx.fillText(`🥚 +${KID_HEAL} HP`, canvas.width / 2, canvas.height / 2 - 110);
+        ctx.restore();
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    // Sync initial position after first resize
+    egg.x = canvas.width / 2;
+    egg.y = canvas.height / 2;
+    egg.aimDX = 1;   // default aim right
+    egg.aimDY = 0;
+    egg.muzzleFlash = 0;
+    egg.recoil = 0;
+
+    startWave(1);
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

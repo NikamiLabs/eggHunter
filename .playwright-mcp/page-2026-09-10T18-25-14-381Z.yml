@@ -1,0 +1,33 @@
+- generic [active] [ref=f1e1]:
+  - generic: WASD move · SPACE attack · 1-4 switch weapon
+  - generic: ❤️ HP
+  - generic:
+    - generic: WAVE 1
+    - generic:
+      - generic:
+        - generic: 🪙
+        - generic: "0"
+      - generic:
+        - generic: 💎
+        - generic: "0"
+  - generic [ref=f1e3]:
+    - generic [ref=f1e4] [cursor=pointer]:
+      - generic [ref=f1e5]: 💣
+      - generic [ref=f1e6]: Bomb Gun
+      - generic [ref=f1e7]: ★☆☆☆☆
+      - generic [ref=f1e8]: "1"
+    - generic [ref=f1e9]:
+      - generic [ref=f1e10]: 💥
+      - generic [ref=f1e11]: Bazooka
+      - generic [ref=f1e12]: ☆☆☆☆☆
+      - generic [ref=f1e13]: "2"
+    - generic [ref=f1e14]:
+      - generic [ref=f1e15]: 🚀
+      - generic [ref=f1e16]: RPG
+      - generic [ref=f1e17]: ☆☆☆☆☆
+      - generic [ref=f1e18]: "3"
+    - generic [ref=f1e19]:
+      - generic [ref=f1e20]: ⚔️
+      - generic [ref=f1e21]: Legendary Sword
+      - generic [ref=f1e22]: ☆☆☆☆☆
+      - generic [ref=f1e23]: "4"
