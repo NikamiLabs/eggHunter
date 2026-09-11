@@ -8,96 +8,185 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; font-family: monospace; }
     canvas { display: block; background: #000; }
+    /* code bar */
+    #code-bar {
+      position: fixed; bottom: 36px; right: 18px; z-index: 20;
+      display: flex; gap: 6px; align-items: center;
+    }
+    #code-input {
+      background: rgba(0,0,0,0.7); border: 1px solid #444; border-radius: 6px;
+      color: #aaa; font-size: 11px; font-family: monospace; padding: 4px 8px;
+      width: 110px; outline: none;
+    }
+    #code-input::placeholder { color: #444; }
+    #code-btn {
+      background: #222; border: 1px solid #555; border-radius: 6px;
+      color: #888; font-size: 10px; font-family: monospace; padding: 4px 8px;
+      cursor: pointer;
+    }
+    #code-btn:hover { background: #333; color: #fff; }
+    #code-msg { font-size: 10px; color: #4cff88; min-width: 80px; }
 
     #hint {
       position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
       color: #333; font-size: 12px; letter-spacing: 0.07em;
       pointer-events: none; user-select: none;
     }
-    /* ---- HUD top bar ---- */
+    /* ---- HUD top bar (health) — full-width rainbow ---- */
     #hud {
-      position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+      position: fixed; top: 0; left: 0; right: 0;
       display: flex; align-items: center; gap: 14px;
+      padding: 8px 16px;
       pointer-events: none; user-select: none;
+      z-index: 10;
     }
-    #hud-label { color: #f9a825; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
-    #health-bar-bg { width: 340px; height: 28px; background: #1a1a1a; border: 1px solid #444; border-radius: 14px; overflow: hidden; }
-    #health-bar-fill { height: 100%; width: 100%; background: linear-gradient(90deg,#27ae60,#2ecc71); border-radius: 14px; transition: width 0.12s; }
+    #hud-label { color: #f9a825; font-size: 20px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 900; white-space: nowrap; text-shadow: 0 0 10px #f9a825bb; }
+    #health-bar-bg { flex: 1; height: 52px; background: #111; border: 3px solid #555; border-radius: 26px; overflow: hidden; position: relative; }
+    #health-bar-fill {
+      height: 100%; width: 100%;
+      background: linear-gradient(90deg, #ff0000, #ff7700, #ffee00, #00dd44, #00aaff, #aa44ff);
+      border-radius: 26px; transition: width 0.12s;
+    }
+    #health-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #fff; letter-spacing: 0.08em; text-shadow: 0 0 10px #000, 0 1px 3px #000; pointer-events: none; font-family: monospace; }
 
     /* ---- Kids HUD (right side) ---- */
     #kids-hud {
-      position: fixed; top: 14px; right: 18px;
-      display: flex; flex-direction: column; gap: 5px; align-items: flex-end;
+      position: fixed; top: 70px; right: 14px;
+      display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
       pointer-events: none; user-select: none;
     }
-    #kids-label { color: #ffcc44; font-size: 12px; letter-spacing: 0.07em; font-weight: bold; }
-    #kids-row { display: flex; gap: 6px; }
-    .kid-icon { font-size: 22px; line-height: 1; filter: drop-shadow(0 0 4px #ffcc44aa); }
+    #kids-label { color: #ffcc44; font-size: 11px; letter-spacing: 0.07em; font-weight: bold; }
+    #kids-row { display: flex; gap: 5px; }
+    .kid-icon { font-size: 18px; line-height: 1; filter: drop-shadow(0 0 4px #ffcc44aa); }
     .kid-icon.empty { opacity: 0.18; filter: none; }
-    #kids-hint { color: #666; font-size: 10px; letter-spacing: 0.05em; }
+    #kids-hint { color: #666; font-size: 9px; letter-spacing: 0.05em; }
 
-    /* ---- Wave + currency HUD (left side) ---- */
-    #wave-hud {
-      position: fixed; top: 14px; left: 18px;
-      display: flex; flex-direction: column; gap: 6px;
+    /* ---- Dino HUD (left side) ---- */
+    #dino-hud {
+      position: fixed; top: 70px; left: 14px;
+      display: flex; flex-direction: column; gap: 3px;
       pointer-events: none; user-select: none;
     }
-    #wave-label { color: #ff6644; font-size: 13px; letter-spacing: 0.08em; font-weight: bold; }
-    #wave-bar-bg { width: 180px; height: 12px; background: #1a1a1a; border: 1px solid #333; border-radius: 6px; overflow: hidden; }
-    #wave-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#ff4400,#ff9900); border-radius: 6px; transition: width 0.1s; }
-    #currency-row { display: flex; gap: 10px; margin-top: 2px; }
-    .curr-item { color: #eee; font-size: 12px; display: flex; align-items: center; gap: 3px; }
+    #dino-label { color: #4cff88; font-size: 11px; letter-spacing: 0.07em; font-weight: bold; }
+    #dino-row   { display: flex; gap: 3px; }
+    .dino-icon  { font-size: 16px; line-height: 1; filter: drop-shadow(0 0 4px #4cff8888); }
+    #dino-hint  { color: #555; font-size: 9px; letter-spacing: 0.05em; }
+
+    /* ---- Wave HUD — compact bar, top-left below dino HUD ---- */
+    #wave-hud {
+      position: fixed; top: 8px; left: 16px;
+      display: flex; flex-direction: column; gap: 3px;
+      pointer-events: none; user-select: none;
+      z-index: 10;
+    }
+    #wave-label {
+      color: #ff6644; font-size: 13px; letter-spacing: 0.1em; font-weight: 900;
+      text-shadow: 0 0 10px #ff440088;
+      line-height: 1;
+    }
+    #wave-bar-bg {
+      width: 200px; height: 14px;
+      background: #1a1a1a; border: 1px solid #444; border-radius: 7px;
+      overflow: hidden; position: relative;
+    }
+    #wave-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#ff2200,#ff6600,#ffaa00); border-radius: 7px; transition: width 0.1s; }
+    #wave-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: #fff; letter-spacing: 0.08em; text-shadow: 0 0 4px #000; pointer-events: none; }
+    #currency-row { display: flex; gap: 10px; margin-top: 1px; }
+    .curr-item { color: #eee; font-size: 11px; display: flex; align-items: center; gap: 3px; font-weight: bold; }
     .curr-coin { color: #ffd700; }
     .curr-diamond { color: #44ddff; }
 
-    /* ---- Inventory bar (bottom-center) ---- */
+    /* ---- Inventory bar (bottom-center, raised) ---- */
     #inv-bar {
-      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 10px; padding: 10px 16px;
       background: rgba(0,0,0,0.88); border: 1px solid #3a3a3a; border-radius: 16px;
       user-select: none;
     }
     .inv-slot {
-      width: 96px; height: 96px; border-radius: 14px; border: 2px solid #333;
+      width: 72px; height: 72px; border-radius: 12px; border: 2px solid #333;
       background: #111; cursor: pointer; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 4px;
+      align-items: center; justify-content: center; gap: 3px;
       transition: border-color 0.15s, background 0.15s, box-shadow 0.15s; position: relative;
     }
     .inv-slot:hover:not(.locked) { border-color: #888; background: #1c1c1c; }
-    .inv-slot.equipped { border-color: #f9a825 !important; background: #1a1100; box-shadow: 0 0 16px 3px #f9a82555; }
+    .inv-slot.equipped { border-color: #f9a825 !important; background: #1a1100; box-shadow: 0 0 12px 3px #f9a82555; }
     .inv-slot.locked { opacity: 0.28; cursor: default; filter: grayscale(1); }
-    .inv-slot .slot-icon { font-size: 36px; line-height: 1; }
-    .inv-slot .slot-name { font-size: 9px; color: #aaa; letter-spacing: 0.03em; text-align: center; line-height: 1.3; }
+    .inv-slot .slot-icon { font-size: 26px; line-height: 1; }
+    .inv-slot .slot-name { font-size: 8px; color: #aaa; letter-spacing: 0.02em; text-align: center; line-height: 1.2; }
     .inv-slot.equipped .slot-name { color: #f9a825; }
-    .inv-slot .slot-stars { font-size: 11px; letter-spacing: -1px; line-height: 1; }
+    .inv-slot .slot-stars { font-size: 9px; letter-spacing: -1px; line-height: 1; }
     .inv-slot.rarity-common  { border-color: #555; }
     .inv-slot.rarity-rare    { border-color: #4488ff; }
     .inv-slot.rarity-epic    { border-color: #aa44ff; }
     .inv-slot.rarity-legend  { border-color: #ffd700; background: #110a00; }
     .inv-slot.equipped.rarity-legend { background: #1c1200; }
-    /* Game over screen */
+    @keyframes legendPulse {
+      0%,100% { box-shadow: 0 0 22px 6px #ffd70099, 0 0 40px 10px #ff880066; }
+      50%      { box-shadow: 0 0 32px 10px #ffd700cc, 0 0 56px 16px #ff6600aa; }
+    }
+    /* ---- Game over / spin screen ---- */
     #gameover {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-      align-items: center; justify-content: center; flex-direction: column; gap: 16px;
-      color: #fff; font-family: monospace;
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92);
+      align-items: flex-start; justify-content: center; flex-direction: column; gap: 0;
+      color: #fff; font-family: monospace; overflow-y: auto;
     }
     #gameover.show { display: flex; }
-    #gameover h1 { font-size: 48px; color: #e74c3c; text-shadow: 0 0 20px #e74c3c88; }
-    #gameover p  { font-size: 16px; color: #aaa; }
-    #gameover button { padding: 12px 32px; background: #e74c3c; border: none; border-radius: 8px; color: #fff; font-size: 16px; font-family: monospace; cursor: pointer; }
-    #gameover button:hover { background: #c0392b; }
+    #go-header { text-align: center; width: 100%; padding: 18px 0 6px; }
+    #go-header h1 { font-size: 40px; color: #e74c3c; text-shadow: 0 0 20px #e74c3c88; margin: 0; }
+    #go-header p  { font-size: 14px; color: #aaa; margin: 4px 0 0; }
+    #wheels-row {
+      display: flex; gap: 32px; justify-content: center; align-items: flex-start;
+      width: 100%; padding: 12px 24px 0; flex-wrap: wrap;
+    }
+    .wheel-panel {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.04); border: 1px solid #333; border-radius: 16px;
+      padding: 16px 20px 14px;
+    }
+    .wheel-title { font-size: 15px; font-weight: bold; letter-spacing: 0.08em; }
+    .wheel-cost  { font-size: 11px; color: #888; }
+    .wheel-wrap  { position: relative; width: 220px; height: 220px; }
+    .wheel-canvas { border-radius: 50%; }
+    .wheel-pointer {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 10px solid transparent; border-right: 10px solid transparent;
+      border-top: 22px solid #fff;
+      filter: drop-shadow(0 2px 4px #000);
+    }
+    .wheel-btn {
+      padding: 9px 28px; border: none; border-radius: 8px;
+      font-size: 14px; font-family: monospace; font-weight: bold;
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .wheel-btn:disabled { opacity: 0.35; cursor: default; }
+    .wheel-btn.coin-btn   { background: #c9900a; color: #fff; border: 2px solid #ffd700; }
+    .wheel-btn.coin-btn:hover:not(:disabled)   { background: #a87800; }
+    .wheel-btn.diamond-btn { background: #1565c0; color: #fff; border: 2px solid #44aaff; }
+    .wheel-btn.diamond-btn:hover:not(:disabled){ background: #0d47a1; }
+    .wheel-result { font-size: 13px; font-weight: bold; min-height: 20px; text-align: center; }
+    #go-actions { display: flex; gap: 14px; justify-content: center; width: 100%; padding: 14px 0 20px; }
+    #go-actions button { padding: 11px 30px; background: #e74c3c; border: none; border-radius: 8px; color: #fff; font-size: 15px; font-family: monospace; cursor: pointer; }
+    #go-actions button:hover { background: #c0392b; }
   </style>
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div id="hint">WASD move · SPACE attack · 1-4 switch weapon · E use kid</div>
+  <div id="hint">WASD · SPACE attack · 1-4 weapon · E heal · R ride dino</div>
   <div id="hud">
     <span id="hud-label">❤️ HP</span>
-    <div id="health-bar-bg"><div id="health-bar-fill"></div></div>
+    <div id="health-bar-bg">
+      <div id="health-bar-fill"></div>
+      <div id="health-bar-text">300 / 300</div>
+    </div>
   </div>
   <div id="wave-hud">
     <span id="wave-label">WAVE 1</span>
-    <div id="wave-bar-bg"><div id="wave-bar-fill"></div></div>
+    <div id="wave-bar-bg">
+      <div id="wave-bar-fill"></div>
+      <div id="wave-bar-text">0 / 12 kills</div>
+    </div>
     <div id="currency-row">
       <span class="curr-item"><span class="curr-coin">🪙</span><span id="coin-count">0</span></span>
       <span class="curr-item"><span class="curr-diamond">💎</span><span id="diamond-count">0</span></span>
@@ -108,17 +197,59 @@
     <div id="kids-row"></div>
     <span id="kids-hint">[ E ] use kid → heal</span>
   </div>
+  <div id="dino-hud">
+    <span id="dino-label">🦕 DINOS</span>
+    <div id="dino-row"></div>
+    <span id="dino-hint">[ R ] ride nearest dino</span>
+  </div>
   <div id="inv-bar"></div>
-  <div id="gameover"><h1>💀 YOU DIED</h1><p id="gameover-stats"></p><button onclick="location.reload()">PLAY AGAIN</button></div>
+  <div id="code-bar">
+    <input id="code-input" type="text" placeholder="enter code..." maxlength="20" autocomplete="off" spellcheck="false"/>
+    <button id="code-btn">APPLY</button>
+    <span id="code-msg"></span>
+  </div>
+  <div id="gameover">
+    <div id="go-header">
+      <h1>💀 YOU DIED</h1>
+      <p id="gameover-stats"></p>
+    </div>
+    <div id="wheels-row">
+      <!-- Coin Wheel (golden) -->
+      <div class="wheel-panel" style="border-color:#b8860b;">
+        <div class="wheel-title" style="color:#ffd700">🪙 COIN WHEEL</div>
+        <div class="wheel-cost" id="coin-cost-label">Costs 20 🪙 · once per death</div>
+        <div class="wheel-wrap">
+          <canvas id="wheel-coin" class="wheel-canvas" width="220" height="220"></canvas>
+          <div class="wheel-pointer" style="border-top-color:#ffd700;"></div>
+        </div>
+        <div class="wheel-result" id="result-coin"></div>
+        <button class="wheel-btn coin-btn" id="btn-coin">SPIN (20 🪙)</button>
+      </div>
+      <!-- Diamond Wheel (blue) -->
+      <div class="wheel-panel" style="border-color:#1565c0;">
+        <div class="wheel-title" style="color:#44aaff">💎 DIAMOND WHEEL</div>
+        <div class="wheel-cost" id="diamond-cost-label">Costs 8 💎 · once per death</div>
+        <div class="wheel-wrap">
+          <canvas id="wheel-diamond" class="wheel-canvas" width="220" height="220"></canvas>
+          <div class="wheel-pointer" style="border-top-color:#44aaff;"></div>
+        </div>
+        <div class="wheel-result" id="result-diamond"></div>
+        <button class="wheel-btn diamond-btn" id="btn-diamond">SPIN (8 💎)</button>
+      </div>
+    </div>
+    <div id="go-actions">
+      <button onclick="location.reload()">▶ PLAY AGAIN</button>
+    </div>
+  </div>
 
   <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
 
-    // Resize canvas to fill window
+    // Resize canvas to 80% of window, centered
     function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.width  = Math.floor(window.innerWidth  * 0.80);
+      canvas.height = Math.floor(window.innerHeight * 0.80);
     }
     resize();
     window.addEventListener('resize', resize);
@@ -139,9 +270,11 @@
 
     // --- HUD refs ---
     const healthFill    = document.getElementById('health-bar-fill');
+            const healthBarText = document.getElementById('health-bar-text');
     const invBarEl      = document.getElementById('inv-bar');
     const waveLabel     = document.getElementById('wave-label');
     const waveBarFill   = document.getElementById('wave-bar-fill');
+    const waveBarText   = document.getElementById('wave-bar-text');
     const coinCountEl   = document.getElementById('coin-count');
     const diamondCountEl= document.getElementById('diamond-count');
     const gameoverEl    = document.getElementById('gameover');
@@ -296,6 +429,7 @@
       wave.phase       = 'fighting';
       wave.bossAlive   = false;
       waveLabel.textContent = `WAVE ${n}`;
+      waveBarText.textContent = `0 / ${wave.killsNeeded} kills`;
       monsters.length  = 0;
       bullets.length   = 0;
       // Scale monster difficulty
@@ -315,12 +449,24 @@
         addKid();
       }
 
+      // Bomb gun upgrade drop: every normal zombie has 60% chance, golden 100%
+      if (!m.boss) {
+        if (m.golden || Math.random() < 0.60) {
+          const bombSlot = inventory.slots.find(s => s.weapon && s.weapon.id === 'bomb_gun');
+          if (bombSlot && bombSlot.stars < 5) {
+            grantWeapon('bomb_gun');
+          }
+        }
+      }
+
       if (wave.phase === 'fighting') {
         wave.kills++;
         const pct = Math.min(1, wave.kills / wave.killsNeeded);
         waveBarFill.style.width = (pct * 100) + '%';
+        waveBarText.textContent = `${wave.kills} / ${wave.killsNeeded} kills`;
         if (wave.kills >= wave.killsNeeded) {
           wave.phase = 'boss';
+          waveBarText.textContent = '⚠ BOSS INCOMING ⚠';
           spawnBoss();
         }
       } else if (wave.phase === 'boss' && m.boss) {
@@ -329,6 +475,7 @@
         wave.intermissionTimer = 180; // ~3s
         waveBarFill.style.width = '100%';
         waveBarFill.style.background = 'linear-gradient(90deg,#ffd700,#fff)';
+        waveBarText.textContent = '✔ WAVE COMPLETE!';
       }
     }
 
@@ -341,9 +488,9 @@
     // =====================================================================
     const WEAPONS = {
       bomb_gun: {
-        id: 'bomb_gun', name: 'Bomb Gun', icon: '💣',
-        rarity: 'common', type: 'ranged',
-        desc: 'Explosive rounds. Area damage.',
+        id: 'bomb_gun', name: 'Dino Cannon', icon: '💣',
+        rarity: 'legend', type: 'ranged',
+        desc: 'Legendary explosive. Spawns dinosaurs at 5★.',
       },
       rpg: {
         id: 'rpg', name: 'RPG', icon: '🚀',
@@ -363,7 +510,8 @@
     };
 
     // Weapon loot pool for golden zombie drops (excluding starting weapon)
-    const LOOT_POOL = ['rpg', 'bazooka', 'sword'];
+    // bomb_gun included so it can be upgraded easily via drops
+    const LOOT_POOL = ['bomb_gun', 'bomb_gun', 'bomb_gun', 'rpg', 'bazooka', 'sword'];
 
     // =====================================================================
     // INVENTORY STATE
@@ -381,36 +529,41 @@
 
     function equippedWeapon() { return inventory.slots[inventory.equipped].weapon; }
     function equippedStars()  { return inventory.slots[inventory.equipped].stars;  }
-    function isMaxStar()      { return equippedStars() >= 5; }
+    const MAX_STARS = 20;
+    function isMaxStar()      { return equippedStars() >= MAX_STARS; }
 
-    // Stars to display (filled ★ + empty ☆)
+    // Stars to display (up to 20 — show blocks of 5 with separators)
     function starsLabel(n) {
-      return '★'.repeat(n) + '☆'.repeat(5 - n);
+      const filled = Math.min(n, MAX_STARS);
+      const empty  = MAX_STARS - filled;
+      return '★'.repeat(filled) + '☆'.repeat(empty);
     }
 
     function grantWeapon(weaponId) {
-      // Already owned? → upgrade stars (max 5)
       const existing = inventory.slots.find(s => s.weapon && s.weapon.id === weaponId);
       if (existing) {
-        if (existing.stars < 5) {
+        // If the slot exists but was never unlocked, unlock it now
+        if (!existing.unlocked) {
+          existing.unlocked = true;
+          existing.stars    = 1;
+          inventory.equipped = inventory.slots.indexOf(existing);
+          renderInventory();
+          pickupFlash = { text: WEAPONS[weaponId].icon + ' ' + WEAPONS[weaponId].name + ' ★', life: 1.0, upgrade: false };
+          return;
+        }
+        // Already unlocked → upgrade stars (max 20)
+        if (existing.stars < MAX_STARS) {
           existing.stars++;
           renderInventory();
           pickupFlash = {
-            text: WEAPONS[weaponId].icon + ' ' + WEAPONS[weaponId].name + ' ' + starsLabel(existing.stars),
+            text: WEAPONS[weaponId].icon + ' ' + WEAPONS[weaponId].name + ' ' + existing.stars + '★',
             life: 1.0, upgrade: true,
           };
         }
         return;
       }
-      // New weapon — find its fixed slot by weaponId and unlock it
-      const slot = inventory.slots.find(s => s.weapon && s.weapon.id === weaponId && !s.unlocked);
-      if (!slot) return;
-      slot.unlocked = true;
-      slot.stars    = 1;
-      // Auto-equip the newly unlocked weapon
-      inventory.equipped = inventory.slots.indexOf(slot);
+      // Fallback: weapon not in slots at all — shouldn't happen but handle it
       renderInventory();
-      pickupFlash = { text: WEAPONS[weaponId].icon + ' ' + WEAPONS[weaponId].name + ' ★', life: 1.0, upgrade: false };
     }
 
     let pickupFlash = null;
@@ -429,9 +582,18 @@
         } else {
           if (i === inventory.equipped) div.classList.add('equipped');
           const maxed = slot.stars >= 5;
+          const isBombLegend = slot.weapon.id === 'bomb_gun' && maxed;
           const starColor = maxed ? '#ffd700' : '#aaa';
           div.innerHTML = `<span class="slot-icon">${slot.weapon.icon}</span><span class="slot-name">${slot.weapon.name}</span><span class="slot-stars" style="color:${starColor}">${starsLabel(slot.stars)}</span>`;
-          if (maxed) div.style.boxShadow = '0 0 14px 3px #ffd70077';
+          if (isBombLegend) {
+            // Rainbow animated glow for legendary maxed Dino Cannon
+            div.style.boxShadow = '0 0 22px 6px #ffd70099, 0 0 40px 10px #ff880066';
+            div.style.border = '2px solid #ffd700';
+            div.style.background = 'linear-gradient(135deg,#1c1200,#2a1800,#1c1200)';
+            div.style.animation = 'legendPulse 1.4s ease-in-out infinite';
+          } else if (maxed) {
+            div.style.boxShadow = '0 0 14px 3px #ffd70077';
+          }
           div.addEventListener('click', () => { inventory.equipped = i; renderInventory(); });
         }
         // Slot number badge
@@ -454,6 +616,430 @@
       }
     });
     window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+    // =====================================================================
+    // DINOSAUR SYSTEM
+    // =====================================================================
+    const dinoRowEl  = document.getElementById('dino-row');
+    const dinoHintEl = document.getElementById('dino-hint');
+    const dinosaurs  = [];   // active normal dino allies on the field
+    let   ridingDino = null; // the dino the egg is currently riding (or null)
+
+    // Mega dino state — null when not alive
+    let megaDino = null;
+    let dinoDeathCount = 0;      // how many normal dinos have died total
+    const MEGA_THRESHOLD = 10;   // deaths needed to summon the mega dino
+
+    // Per-wave base stats — scale with wave number
+    function dinoBaseHp()    { return 40 + wave.number * 15; }
+    function dinoBaseAtk()   { return 10 + wave.number * 3;  }
+    function dinoBaseSpeed() { return 2.2 + wave.number * 0.1; }
+
+    function renderDinoHUD() {
+      dinoRowEl.innerHTML = '';
+      if (megaDino) {
+        // Show mega dino status
+        const sp = document.createElement('span');
+        sp.className = 'dino-icon';
+        sp.style.fontSize = '28px';
+        sp.textContent = '🦖';
+        dinoRowEl.appendChild(sp);
+        dinoHintEl.textContent = ridingDino === megaDino ? '🔴 RIDING MEGA DINO' : '[ R ] ride MEGA dino';
+      } else {
+        const max = Math.min(dinosaurs.length, 8);
+        for (let i = 0; i < max; i++) {
+          const sp = document.createElement('span');
+          sp.className = 'dino-icon';
+          sp.textContent = '🦕';
+          dinoRowEl.appendChild(sp);
+        }
+        // Show progress toward mega dino
+        const remaining = MEGA_THRESHOLD - dinoDeathCount;
+        dinoHintEl.textContent = remaining > 0
+          ? `${dinoDeathCount}/${MEGA_THRESHOLD} deaths → MEGA DINO`
+          : '[ R ] ride nearest dino';
+      }
+    }
+
+    function spawnDino(x, y) {
+      const hp = dinoBaseHp();
+      dinosaurs.push({
+        x, y,
+        r: 28,
+        speed: dinoBaseSpeed(),
+        hp, maxHp: hp,
+        atk: dinoBaseAtk(),
+        atkCooldown: 0,
+        bobAngle: Math.random() * Math.PI * 2,
+        walkAngle: 0,
+        hitFlash: 0,
+        mega: false,
+      });
+      renderDinoHUD();
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        deathParticles.push({
+          x, y,
+          vx: Math.cos(a) * (2 + Math.random() * 5),
+          vy: Math.sin(a) * (2 + Math.random() * 5),
+          life: 1.0, r: 5 + Math.random() * 5,
+          color: '#4cff88',
+        });
+      }
+    }
+
+    function spawnMegaDino() {
+      // Kill all normal dinos first
+      dinosaurs.length = 0;
+      if (ridingDino && !ridingDino.mega) { ridingDino = null; egg.speed = 4; }
+
+      const cx = canvas.width / 2, cy = canvas.height / 2;
+      const hp = 600 + wave.number * 80;
+      megaDino = {
+        x: cx, y: cy,
+        r: 72,
+        speed: 3.8 + wave.number * 0.12,
+        hp, maxHp: hp,
+        atk: 35 + wave.number * 8,
+        atkCooldown: 0,
+        bobAngle: 0,
+        walkAngle: 0,
+        hitFlash: 0,
+        mega: true,
+      };
+      renderDinoHUD();
+      // Big red dramatic burst
+      for (let i = 0; i < 40; i++) {
+        const a = (i / 40) * Math.PI * 2;
+        deathParticles.push({
+          x: cx, y: cy,
+          vx: Math.cos(a) * (3 + Math.random() * 10),
+          vy: Math.sin(a) * (3 + Math.random() * 10),
+          life: 1.0, r: 8 + Math.random() * 10,
+          color: ['#ff2200','#ff6600','#ff0000','#ff4400'][Math.floor(Math.random()*4)],
+        });
+      }
+      shockwaves.push({ x: cx, y: cy, r: 10, life: 1.5 });
+    }
+
+    function upgradeDinosForWave() {
+      for (const d of dinosaurs) {
+        const hp = dinoBaseHp();
+        const heal = hp - d.maxHp;
+        d.maxHp = hp;
+        d.hp    = Math.min(d.maxHp, d.hp + Math.max(0, heal));
+        d.atk   = dinoBaseAtk();
+        d.speed = dinoBaseSpeed();
+      }
+      if (megaDino) {
+        const hp = 600 + wave.number * 80;
+        megaDino.maxHp = hp;
+        megaDino.hp = Math.min(hp, megaDino.hp + 100);
+        megaDino.atk = 35 + wave.number * 8;
+        megaDino.speed = 3.8 + wave.number * 0.12;
+      }
+    }
+
+    function tryRideDino() {
+      // Dismount if already riding
+      if (ridingDino) {
+        ridingDino = null;
+        egg.speed = 4;
+        return;
+      }
+      // Try mega dino first
+      if (megaDino) {
+        const dx = egg.x - megaDino.x, dy = egg.y - megaDino.y;
+        if (Math.sqrt(dx*dx + dy*dy) < egg.rx + megaDino.r + 40) {
+          ridingDino = megaDino;
+          egg.speed = 11; // mega speed boost
+          renderDinoHUD();
+          return;
+        }
+      }
+      // Fall back to nearest normal dino
+      let nearest = null, bestDist = Infinity;
+      for (const d of dinosaurs) {
+        const dx = egg.x - d.x, dy = egg.y - d.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < bestDist) { bestDist = dist; nearest = d; }
+      }
+      if (nearest && bestDist < egg.rx + nearest.r + 28) {
+        ridingDino = nearest;
+        egg.speed = 7;
+        renderDinoHUD();
+      }
+    }
+
+    // Shared movement/attack logic for one dino object (normal or mega)
+    function updateOneDino(d, i, isMega, dt) {
+      if (d === ridingDino) {
+        // Snap below egg when riding
+        d.x = egg.x + (isMega ? 0 : 2);
+        d.y = egg.y + egg.ry + (isMega ? 30 : 12);
+      } else {
+        // Chase nearest zombie
+        let target = null, bestDist = Infinity;
+        for (const m of monsters) {
+          const dx = m.x - d.x, dy = m.y - d.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < bestDist) { bestDist = dist; target = m; }
+        }
+        if (target) {
+          const dx = target.x - d.x, dy = target.y - d.y;
+          const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+          d.x += (dx / dist) * d.speed * dt;
+          d.y += (dy / dist) * d.speed * dt;
+        }
+      }
+
+      d.bobAngle  += 0.07 * dt;
+      d.walkAngle += 0.14 * dt;
+      if (d.hitFlash > 0)    d.hitFlash    = Math.max(0, d.hitFlash    - 0.06 * dt);
+      if (d.atkCooldown > 0) d.atkCooldown -= dt;
+
+      // Attack zombies in range
+      for (let j = monsters.length - 1; j >= 0; j--) {
+        const m = monsters[j];
+        const dx = m.x - d.x, dy = m.y - d.y;
+        if (Math.sqrt(dx*dx + dy*dy) < d.r + m.r + (isMega ? 20 : 5) && d.atkCooldown <= 0) {
+          d.atkCooldown = isMega ? 25 : 40;
+          m.hp -= d.atk;
+          m.hitFlash = 1.0;
+          if (m.hp <= 0) {
+            if (m.golden) dropWeaponAt(m.x, m.y);
+            spawnDeathParticles(m.x, m.y, m.color);
+            spawnDeathParticles(m.x, m.y, isMega ? '#ff4400' : '#4cff88');
+            onKill(m);
+            monsters.splice(j, 1);
+          }
+          break;
+        }
+      }
+
+      // Monsters damage the dino
+      for (const m of monsters) {
+        const dx = m.x - d.x, dy = m.y - d.y;
+        if (Math.sqrt(dx*dx + dy*dy) < d.r + m.r - 4 && d.atkCooldown <= 0) {
+          d.hp -= m.boss ? (isMega ? 12 : 8) : (isMega ? 5 : 3);
+          d.hitFlash = 1.0;
+          d.atkCooldown = 30;
+          break;
+        }
+      }
+    }
+
+    function updateDinosaurs(dt) {
+      // Update normal dinos
+      for (let i = dinosaurs.length - 1; i >= 0; i--) {
+        const d = dinosaurs[i];
+        updateOneDino(d, i, false, dt);
+        if (d.hp <= 0) {
+          if (d === ridingDino) { ridingDino = null; egg.speed = 4; }
+          spawnDeathParticles(d.x, d.y, '#4cff88');
+          spawnDeathParticles(d.x, d.y, '#22aa55');
+          dinosaurs.splice(i, 1);
+          dinoDeathCount++;
+          renderDinoHUD();
+          // Reached threshold → summon the mega dino
+          if (dinoDeathCount >= MEGA_THRESHOLD && !megaDino) {
+            spawnMegaDino();
+          }
+        }
+      }
+
+      // Update mega dino
+      if (megaDino) {
+        updateOneDino(megaDino, -1, true, dt);
+        if (megaDino.hp <= 0) {
+          if (ridingDino === megaDino) { ridingDino = null; egg.speed = 4; }
+          // Mega dino death — huge explosion
+          for (let i = 0; i < 50; i++) {
+            const a = (i / 50) * Math.PI * 2;
+            deathParticles.push({
+              x: megaDino.x, y: megaDino.y,
+              vx: Math.cos(a) * (4 + Math.random() * 12),
+              vy: Math.sin(a) * (4 + Math.random() * 12),
+              life: 1.0, r: 10 + Math.random() * 12,
+              color: ['#ff2200','#ff6600','#ff0000'][Math.floor(Math.random()*3)],
+            });
+          }
+          shockwaves.push({ x: megaDino.x, y: megaDino.y, r: 10, life: 1.5 });
+                    const mx = megaDino.x, my = megaDino.y;
+          megaDino = null;
+          // Spawn fresh pack of 5 normal dinos at the mega's last position
+          dinoDeathCount = 0;
+          for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2;
+            spawnDino(mx + Math.cos(a) * 60, my + Math.sin(a) * 60);
+          }
+          renderDinoHUD();
+        }
+      }
+    }
+
+    function drawDinosaur(d) {
+      const isRiding = d === ridingDino;
+      const bob = isRiding ? 0 : Math.sin(d.bobAngle) * 2.5;
+      ctx.save();
+      ctx.translate(d.x, d.y + bob);
+
+      const f = d.hitFlash;
+      const isMega = !!d.mega;
+
+      // --- colour palette: red for mega, green for normal ---
+      const bodyCol  = f > 0 ? `rgba(255,255,255,${f})` : (isMega ? '#cc1100' : '#2d8a4e');
+      const bodyCol2 = f > 0 ? `rgba(220,180,180,${f})` : (isMega ? '#7a0800' : '#1a5c33');
+      const headCol  = f > 0 ? `rgba(255,255,255,${f})` : (isMega ? '#ee2200' : '#3aaa60');
+      const spikeCol = f > 0 ? `rgba(255,255,255,${f})` : (isMega ? '#ff4400' : '#22aa55');
+      const legCol   = f > 0 ? `rgba(220,180,180,${f})` : (isMega ? '#cc1100' : '#2d8a4e');
+      const legCol2  = f > 0 ? `rgba(180,140,140,${f})` : (isMega ? '#7a0800' : '#1a5c33');
+
+      // Riding glow ring
+      if (isRiding) {
+        ctx.beginPath();
+        ctx.arc(0, 0, d.r + (isMega ? 14 : 8), 0, Math.PI * 2);
+        ctx.strokeStyle = isMega ? 'rgba(255,80,30,0.5)' : 'rgba(80,255,140,0.35)';
+        ctx.lineWidth = isMega ? 8 : 5;
+        ctx.stroke();
+      }
+
+      // Mega aura pulse
+      if (isMega) {
+        const pulse = 0.12 + 0.08 * Math.sin(d.bobAngle * 2);
+        const aura = ctx.createRadialGradient(0, 0, d.r * 0.6, 0, 0, d.r * 1.8);
+        aura.addColorStop(0, `rgba(255,40,0,${pulse})`);
+        aura.addColorStop(1, 'transparent');
+        ctx.beginPath(); ctx.arc(0, 0, d.r * 1.8, 0, Math.PI * 2);
+        ctx.fillStyle = aura; ctx.fill();
+      }
+
+      // Torso
+      const bg = ctx.createRadialGradient(-d.r * 0.3, -d.r * 0.3, 2, 0, 0, d.r * 1.2);
+      bg.addColorStop(0, bodyCol); bg.addColorStop(1, bodyCol2);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, d.r * 0.75, d.r, 0, 0, Math.PI * 2);
+      ctx.fillStyle = bg; ctx.fill();
+      ctx.strokeStyle = isMega ? 'rgba(80,0,0,0.6)' : 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = isMega ? 3 : 1.5; ctx.stroke();
+
+      // Tail
+      ctx.beginPath();
+      ctx.moveTo(-d.r * 0.6, d.r * 0.2);
+      ctx.bezierCurveTo(-d.r * 1.3, d.r * 0.4, -d.r * 1.7, -d.r * 0.1, -d.r * 2.0, -d.r * 0.5);
+      ctx.strokeStyle = bodyCol; ctx.lineWidth = d.r * (isMega ? 0.45 : 0.38); ctx.lineCap = 'round'; ctx.stroke();
+
+      // Head
+      ctx.beginPath();
+      ctx.ellipse(d.r * 0.55, -d.r * 0.65, d.r * (isMega ? 0.62 : 0.5), d.r * (isMega ? 0.46 : 0.38), 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = headCol;
+      ctx.fill(); ctx.strokeStyle = isMega ? 'rgba(60,0,0,0.4)' : 'rgba(0,0,0,0.25)'; ctx.lineWidth = isMega ? 2 : 1; ctx.stroke();
+
+      // Snout
+      ctx.beginPath();
+      ctx.ellipse(d.r * (isMega ? 1.05 : 0.95), -d.r * 0.55, d.r * (isMega ? 0.36 : 0.28), d.r * 0.2, 0.15, 0, Math.PI * 2);
+      ctx.fillStyle = bodyCol; ctx.fill();
+
+      // Nostrils (mega gets two)
+      if (isMega) {
+        ctx.fillStyle = '#330000';
+        ctx.beginPath(); ctx.arc(d.r * 1.2, -d.r * 0.62, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(d.r * 1.2, -d.r * 0.48, 3.5, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(d.r * 1.1, -d.r * 0.55, 2, 0, Math.PI * 2);
+        ctx.fillStyle = '#111'; ctx.fill();
+      }
+
+      // Eyes — mega gets glowing red eyes
+      const eyeR = d.r * (isMega ? 0.17 : 0.13);
+      ctx.beginPath(); ctx.arc(d.r * 0.72, -d.r * 0.72, eyeR, 0, Math.PI * 2);
+      ctx.fillStyle = isMega ? '#ff2200' : '#fff'; ctx.fill();
+      if (isMega) {
+        // Glowing slit pupil
+        ctx.beginPath(); ctx.arc(d.r * 0.72, -d.r * 0.72, eyeR * 0.45, 0, Math.PI * 2);
+        ctx.fillStyle = '#660000'; ctx.fill();
+        // Eye glow
+        const eyeGlow = ctx.createRadialGradient(d.r*0.72, -d.r*0.72, 0, d.r*0.72, -d.r*0.72, eyeR * 2.2);
+        eyeGlow.addColorStop(0, 'rgba(255,60,0,0.55)');
+        eyeGlow.addColorStop(1, 'transparent');
+        ctx.beginPath(); ctx.arc(d.r * 0.72, -d.r * 0.72, eyeR * 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = eyeGlow; ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(d.r * 0.74, -d.r * 0.72, d.r * 0.08, 0, Math.PI * 2);
+        ctx.fillStyle = '#111'; ctx.fill();
+        ctx.beginPath(); ctx.arc(d.r * 0.71, -d.r * 0.75, d.r * 0.03, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff'; ctx.fill();
+      }
+
+      // Spikes — mega gets 6 larger jagged spikes
+      const spikeCount = isMega ? 6 : 4;
+      for (let s = 0; s < spikeCount; s++) {
+        const sx = -d.r * 0.55 + s * d.r * (isMega ? 0.26 : 0.3);
+        const sy = -d.r * (isMega ? 0.9 : 0.85);
+        const sh = d.r * (isMega ? 0.45 : 0.28);
+        ctx.beginPath();
+        ctx.moveTo(sx - d.r * 0.12, sy + d.r * 0.15);
+        ctx.lineTo(sx, sy - sh);
+        ctx.lineTo(sx + d.r * 0.12, sy + d.r * 0.15);
+        ctx.closePath();
+        ctx.fillStyle = spikeCol; ctx.fill();
+        if (isMega) {
+          ctx.strokeStyle = '#440000'; ctx.lineWidth = 1.5; ctx.stroke();
+        }
+      }
+
+      // Legs (walk cycle)
+      const legSwing = Math.sin(d.walkAngle) * 0.35;
+      ctx.save();
+      ctx.translate(-d.r * 0.1, d.r * 0.55); ctx.rotate(-legSwing - 0.2);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-d.r*0.25, d.r*0.55);
+      ctx.strokeStyle = legCol; ctx.lineWidth = d.r * (isMega ? 0.32 : 0.25); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-d.r*0.25, d.r*0.55, d.r*0.16, 0, Math.PI*2);
+      ctx.fillStyle = legCol2; ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(d.r * 0.25, d.r * 0.55); ctx.rotate(legSwing + 0.2);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(d.r*0.25, d.r*0.55);
+      ctx.strokeStyle = legCol; ctx.lineWidth = d.r * (isMega ? 0.32 : 0.25); ctx.stroke();
+      ctx.beginPath(); ctx.arc(d.r*0.25, d.r*0.55, d.r*0.16, 0, Math.PI*2);
+      ctx.fillStyle = legCol2; ctx.fill();
+      ctx.restore();
+
+      // HP bar — mega gets a wide red bar
+      const barW = d.r * (isMega ? 3.2 : 2.4);
+      const barH = isMega ? 14 : 7;
+      const bx   = -barW / 2, by2 = -d.r - (isMega ? 24 : 14);
+      ctx.fillStyle = isMega ? '#220000' : '#111';
+      ctx.beginPath(); ctx.roundRect(bx, by2, barW, barH, barH/2); ctx.fill();
+      const hpP = d.hp / d.maxHp;
+      ctx.fillStyle = isMega
+        ? (hpP > 0.5 ? '#cc0000' : hpP > 0.25 ? '#ff4400' : '#ff0000')
+        : (hpP > 0.5 ? '#27ae60' : hpP > 0.25 ? '#e67e22' : '#e74c3c');
+      ctx.beginPath(); ctx.roundRect(bx, by2, barW * hpP, barH, barH/2); ctx.fill();
+      ctx.strokeStyle = isMega ? '#550000' : '#333'; ctx.lineWidth = isMega ? 2 : 1;
+      ctx.beginPath(); ctx.roundRect(bx, by2, barW, barH, barH/2); ctx.stroke();
+
+      // Label above bar
+      ctx.font = `bold ${isMega ? 14 : 9}px monospace`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      if (isMega) {
+        ctx.fillStyle = isRiding ? '#ff6644' : '#ff2200';
+        ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 10;
+        ctx.fillText(isRiding ? '🔴 RIDING BOSS DINO' : '🦖 BOSS DINO', 0, by2 - 2);
+        ctx.shadowBlur = 0;
+      } else if (isRiding) {
+        ctx.fillStyle = '#4cff88';
+        ctx.fillText('RIDING', 0, by2 - 2);
+      }
+
+      ctx.restore();
+    }
+
+    function drawDinosaurs() {
+      for (const d of dinosaurs) drawDinosaur(d);
+      if (megaDino) drawDinosaur(megaDino);
+    }
 
     // --- Draw egg character ---
     function drawEgg(x, y, walkAngle, bobY, squash) {
@@ -669,103 +1255,291 @@
       const wid = equippedWeapon() ? equippedWeapon().id : 'bomb_gun';
 
       if (wid === 'rpg') {
-        // ---- RPG: long green tube on the shoulder ----
-        // Main tube body
-        ctx.fillStyle = '#4a7c3f';
-        ctx.beginPath();
-        ctx.roundRect(-2, -5, 38, 10, 3);
-        ctx.fill();
-        // Tube highlight
-        ctx.fillStyle = '#6aad5a';
-        ctx.beginPath();
-        ctx.roundRect(-1, -4, 36, 4, 2);
-        ctx.fill();
-        // Back exhaust cone
-        ctx.fillStyle = '#2a4a28';
-        ctx.beginPath();
-        ctx.moveTo(-2, -5); ctx.lineTo(-10, -3); ctx.lineTo(-10, 3); ctx.lineTo(-2, 5);
-        ctx.closePath(); ctx.fill();
-        // Front launcher mouth (wide ring)
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.roundRect(34, -6, 6, 12, 2);
-        ctx.fill();
-        ctx.fillStyle = '#555';
-        ctx.beginPath();
-        ctx.arc(37, 0, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#111';
-        ctx.beginPath();
-        ctx.arc(37, 0, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        // Grip / trigger guard
-        ctx.fillStyle = '#2a4a28';
-        ctx.beginPath();
-        ctx.roundRect(8, 5, 5, 10, 2);
-        ctx.fill();
-        // Sight on top
-        ctx.fillStyle = '#222';
-        ctx.beginPath();
-        ctx.roundRect(14, -9, 8, 4, 1);
-        ctx.fill();
-        ctx.fillStyle = '#ff3333';
-        ctx.beginPath();
-        ctx.arc(22, -7, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (wid === 'bazooka') {
-        // ---- Bazooka: fat wide orange/metal tube ----
-        ctx.fillStyle = '#8B4513';
-        ctx.beginPath();
-        ctx.roundRect(-3, -7, 42, 14, 4);
-        ctx.fill();
-        ctx.fillStyle = '#a0522d';
-        ctx.beginPath();
-        ctx.roundRect(-2, -6, 40, 6, 3);
-        ctx.fill();
-        // Metal bands
-        ['#666','#777','#666'].forEach((c, i) => {
-          ctx.fillStyle = c;
+        const rpgMaxed = equippedStars() >= 5;
+        if (rpgMaxed) {
+          // ---- SHARK RPG (5★ legendary) ----
+          const t = egg.bobAngle;
+          // Blue shimmer glow
+          const sharkHalo = ctx.createRadialGradient(14, 0, 2, 14, 0, 30);
+          sharkHalo.addColorStop(0, `rgba(0,150,255,${0.3 + 0.15*Math.sin(t*3)})`);
+          sharkHalo.addColorStop(1, 'transparent');
+          ctx.beginPath(); ctx.arc(14, 0, 30, 0, Math.PI*2);
+          ctx.fillStyle = sharkHalo; ctx.fill();
+          // Shark body (torpedo + shark snout)
+          ctx.fillStyle = '#2255aa';
           ctx.beginPath();
-          ctx.roundRect(4 + i * 11, -7, 4, 14, 1);
+          ctx.roundRect(-2, -6, 36, 12, 6);
           ctx.fill();
-        });
-        // Muzzle bell (wider opening)
-        ctx.fillStyle = '#444';
-        ctx.beginPath();
-        ctx.ellipse(40, 0, 5, 9, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#111';
-        ctx.beginPath();
-        ctx.ellipse(40, 0, 3, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // Back vent
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.moveTo(-3, -7); ctx.lineTo(-12, -4); ctx.lineTo(-12, 4); ctx.lineTo(-3, 7);
-        ctx.closePath(); ctx.fill();
-        // Handle
-        ctx.fillStyle = '#5a2d0c';
-        ctx.beginPath();
-        ctx.roundRect(12, 7, 6, 12, 2);
-        ctx.fill();
+          ctx.fillStyle = '#3388ff';
+          ctx.beginPath(); ctx.roundRect(-1, -5, 34, 5, 4); ctx.fill();
+          // Shark snout — pointy wedge at front
+          ctx.fillStyle = '#eef';
+          ctx.beginPath();
+          ctx.moveTo(34, -5); ctx.lineTo(46, 0); ctx.lineTo(34, 5);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#cce';
+          ctx.beginPath(); ctx.arc(40, 0, 3, 0, Math.PI*2); ctx.fill();
+          // Shark fin on top
+          ctx.fillStyle = '#2255aa';
+          ctx.beginPath();
+          ctx.moveTo(10, -6); ctx.lineTo(16, -18); ctx.lineTo(22, -6);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#3388ff';
+          ctx.beginPath();
+          ctx.moveTo(11, -6); ctx.lineTo(16, -15); ctx.lineTo(21, -6);
+          ctx.closePath(); ctx.fill();
+          // Teeth row at front
+          ctx.fillStyle = '#fff';
+          for (let tk = 0; tk < 4; tk++) {
+            ctx.beginPath();
+            ctx.moveTo(30 + tk*2.5, -3); ctx.lineTo(31.5 + tk*2.5, 0); ctx.lineTo(33 + tk*2.5, -3);
+            ctx.closePath(); ctx.fill();
+          }
+          // Eye (dark with white sclera)
+          ctx.beginPath(); ctx.arc(24, -1, 3.5, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+          ctx.beginPath(); ctx.arc(25, -1, 2, 0, Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
+          // Back exhaust with fire glow
+          const fireGrd = ctx.createLinearGradient(-12, 0, -2, 0);
+          fireGrd.addColorStop(0, 'transparent');
+          fireGrd.addColorStop(1, `rgba(0,200,255,${0.5+0.4*Math.sin(t*4)})`);
+          ctx.beginPath(); ctx.roundRect(-10, -4, 10, 8, 3);
+          ctx.fillStyle = fireGrd; ctx.fill();
+          // "SHARK RPG" label
+          ctx.save();
+          ctx.font = 'bold 7px monospace'; ctx.fillStyle = '#44aaff';
+          ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 6;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillText('SHARK RPG', 16, 8); ctx.shadowBlur = 0;
+          ctx.restore();
+        } else {
+          // ---- RPG: normal green tube ----
+          ctx.fillStyle = '#4a7c3f';
+          ctx.beginPath(); ctx.roundRect(-2, -5, 38, 10, 3); ctx.fill();
+          ctx.fillStyle = '#6aad5a';
+          ctx.beginPath(); ctx.roundRect(-1, -4, 36, 4, 2); ctx.fill();
+          ctx.fillStyle = '#2a4a28';
+          ctx.beginPath();
+          ctx.moveTo(-2, -5); ctx.lineTo(-10, -3); ctx.lineTo(-10, 3); ctx.lineTo(-2, 5);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#333';
+          ctx.beginPath(); ctx.roundRect(34, -6, 6, 12, 2); ctx.fill();
+          ctx.fillStyle = '#555';
+          ctx.beginPath(); ctx.arc(37, 0, 4, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#111';
+          ctx.beginPath(); ctx.arc(37, 0, 2.5, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#2a4a28';
+          ctx.beginPath(); ctx.roundRect(8, 5, 5, 10, 2); ctx.fill();
+          ctx.fillStyle = '#222';
+          ctx.beginPath(); ctx.roundRect(14, -9, 8, 4, 1); ctx.fill();
+          ctx.fillStyle = '#ff3333';
+          ctx.beginPath(); ctx.arc(22, -7, 1.5, 0, Math.PI*2); ctx.fill();
+        }
+      } else if (wid === 'bazooka') {
+        const bazMaxed = equippedStars() >= 5;
+        if (bazMaxed) {
+          // ---- SHARK BAZOOKA (5★ legendary) ----
+          const t = egg.bobAngle;
+          // Wide jaw glow
+          const jaw = ctx.createRadialGradient(16, 0, 2, 16, 0, 34);
+          jaw.addColorStop(0, `rgba(0,220,180,${0.3+0.15*Math.sin(t*2.5)})`);
+          jaw.addColorStop(1, 'transparent');
+          ctx.beginPath(); ctx.arc(16, 0, 34, 0, Math.PI*2);
+          ctx.fillStyle = jaw; ctx.fill();
+          // Wide shark body
+          ctx.fillStyle = '#006655';
+          ctx.beginPath(); ctx.roundRect(-4, -9, 46, 18, 7); ctx.fill();
+          ctx.fillStyle = '#00998a';
+          ctx.beginPath(); ctx.roundRect(-3, -8, 44, 8, 5); ctx.fill();
+          // Wide jaw/muzzle — open shark mouth
+          ctx.fillStyle = '#004444';
+          ctx.beginPath(); ctx.ellipse(44, 0, 8, 12, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#aa2222';
+          ctx.beginPath(); ctx.ellipse(44, 2, 6, 8, 0, 0, Math.PI, Math.PI*2); ctx.fill(); // inside mouth
+          // Shark teeth row (upper + lower)
+          ctx.fillStyle = '#fff';
+          for (let tk = 0; tk < 5; tk++) {
+            // upper teeth
+            ctx.beginPath();
+            ctx.moveTo(37 + tk*1.8, -5); ctx.lineTo(38.5 + tk*1.8, 0); ctx.lineTo(40 + tk*1.8, -5);
+            ctx.closePath(); ctx.fill();
+            // lower teeth
+            ctx.beginPath();
+            ctx.moveTo(37 + tk*1.8, 5); ctx.lineTo(38.5 + tk*1.8, 0); ctx.lineTo(40 + tk*1.8, 5);
+            ctx.closePath(); ctx.fill();
+          }
+          // Dorsal fin on top
+          ctx.fillStyle = '#006655';
+          ctx.beginPath();
+          ctx.moveTo(6, -9); ctx.lineTo(14, -22); ctx.lineTo(22, -9);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#00aa99';
+          ctx.beginPath();
+          ctx.moveTo(7, -9); ctx.lineTo(14, -19); ctx.lineTo(21, -9);
+          ctx.closePath(); ctx.fill();
+          // Side fin (lower)
+          ctx.fillStyle = '#006655';
+          ctx.beginPath();
+          ctx.moveTo(12, 9); ctx.lineTo(8, 20); ctx.lineTo(22, 9);
+          ctx.closePath(); ctx.fill();
+          // Eye
+          ctx.beginPath(); ctx.arc(30, -2, 4, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+          ctx.beginPath(); ctx.arc(31, -2, 2.2, 0, Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+          ctx.beginPath(); ctx.arc(30.5, -2.5, 0.8, 0, Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+          // Back vent with teal glow
+          const ventGrd = ctx.createLinearGradient(-14, 0, -4, 0);
+          ventGrd.addColorStop(0, 'transparent');
+          ventGrd.addColorStop(1, `rgba(0,255,200,${0.5+0.35*Math.sin(t*3)})`);
+          ctx.beginPath(); ctx.roundRect(-12, -5, 10, 10, 3); ctx.fillStyle = ventGrd; ctx.fill();
+          // Label
+          ctx.save();
+          ctx.font = 'bold 7px monospace'; ctx.fillStyle = '#00ffcc';
+          ctx.shadowColor = '#00ffcc'; ctx.shadowBlur = 6;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillText('SHARK BAZOOKA', 16, 10); ctx.shadowBlur = 0;
+          ctx.restore();
+        } else {
+          // ---- Bazooka: normal fat tube ----
+          ctx.fillStyle = '#8B4513';
+          ctx.beginPath(); ctx.roundRect(-3, -7, 42, 14, 4); ctx.fill();
+          ctx.fillStyle = '#a0522d';
+          ctx.beginPath(); ctx.roundRect(-2, -6, 40, 6, 3); ctx.fill();
+          ['#666','#777','#666'].forEach((c, i) => {
+            ctx.fillStyle = c;
+            ctx.beginPath(); ctx.roundRect(4 + i * 11, -7, 4, 14, 1); ctx.fill();
+          });
+          ctx.fillStyle = '#444';
+          ctx.beginPath(); ctx.ellipse(40, 0, 5, 9, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#111';
+          ctx.beginPath(); ctx.ellipse(40, 0, 3, 6, 0, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#333';
+          ctx.beginPath();
+          ctx.moveTo(-3, -7); ctx.lineTo(-12, -4); ctx.lineTo(-12, 4); ctx.lineTo(-3, 7);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = '#5a2d0c';
+          ctx.beginPath(); ctx.roundRect(12, 7, 6, 12, 2); ctx.fill();
+        }
       } else {
-        // ---- Bomb Gun (default pistol) ----
-        ctx.fillStyle = '#222';
-        ctx.beginPath();
-        ctx.roundRect(-2, 1, 6, 9, 2);
-        ctx.fill();
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.roundRect(-1, -4, 16, 5, 2);
-        ctx.fill();
-        ctx.fillStyle = '#555';
-        ctx.beginPath();
-        ctx.roundRect(0, -3, 14, 2, 1);
-        ctx.fill();
-        ctx.fillStyle = '#444';
-        ctx.beginPath();
-        ctx.roundRect(14, -5, 4, 7, 1);
-        ctx.fill();
+        const bombStars = inventory.slots[0].stars;
+        const bombMaxed = bombStars >= 5;
+
+        if (bombMaxed) {
+          // ---- LEGENDARY 5★ Dino Cannon ----
+          // Animated shimmer using egg.bobAngle as time source
+          const t = egg.bobAngle;
+
+          // Outer golden glow halo
+          const halo = ctx.createRadialGradient(10, 0, 2, 10, 0, 28);
+          halo.addColorStop(0, `rgba(255,220,50,${0.35 + 0.2 * Math.sin(t * 3)})`);
+          halo.addColorStop(0.5, `rgba(255,140,0,${0.2 + 0.15 * Math.sin(t * 2 + 1)})`);
+          halo.addColorStop(1, 'transparent');
+          ctx.beginPath();
+          ctx.arc(10, 0, 28, 0, Math.PI * 2);
+          ctx.fillStyle = halo; ctx.fill();
+
+          // Main barrel — wide gilded cannon body
+          const barrelGrd = ctx.createLinearGradient(-4, -8, -4, 8);
+          barrelGrd.addColorStop(0, '#ffe566');
+          barrelGrd.addColorStop(0.3, '#ffd700');
+          barrelGrd.addColorStop(0.6, '#b8860b');
+          barrelGrd.addColorStop(1, '#7a5800');
+          ctx.fillStyle = barrelGrd;
+          ctx.beginPath();
+          ctx.roundRect(-4, -8, 38, 16, 5);
+          ctx.fill();
+          // Barrel shine streak
+          ctx.fillStyle = 'rgba(255,255,200,0.45)';
+          ctx.beginPath();
+          ctx.roundRect(-2, -6, 34, 5, 3);
+          ctx.fill();
+
+          // Gold bands/rings along barrel
+          [4, 14, 24].forEach(bx2 => {
+            const ringGrd = ctx.createLinearGradient(bx2, -8, bx2, 8);
+            ringGrd.addColorStop(0, '#ffe566');
+            ringGrd.addColorStop(0.5, '#ffd700');
+            ringGrd.addColorStop(1, '#7a5800');
+            ctx.fillStyle = ringGrd;
+            ctx.beginPath();
+            ctx.roundRect(bx2, -9, 5, 18, 2);
+            ctx.fill();
+          });
+
+          // Muzzle bell — large dark opening with gold rim
+          ctx.fillStyle = '#1a1a1a';
+          ctx.beginPath();
+          ctx.ellipse(35, 0, 6, 10, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffd700';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(35, 0, 6, 10, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          // Barrel bore glow
+          const boreGrd = ctx.createRadialGradient(35, 0, 0, 35, 0, 5);
+          boreGrd.addColorStop(0, `rgba(255,200,50,${0.6 + 0.4 * Math.sin(t * 4)})`);
+          boreGrd.addColorStop(1, 'transparent');
+          ctx.beginPath();
+          ctx.arc(35, 0, 5, 0, Math.PI * 2);
+          ctx.fillStyle = boreGrd; ctx.fill();
+
+          // Grip — ornate dark gold
+          const gripGrd = ctx.createLinearGradient(-2, 8, 8, 8);
+          gripGrd.addColorStop(0, '#7a5800');
+          gripGrd.addColorStop(0.5, '#b8860b');
+          gripGrd.addColorStop(1, '#7a5800');
+          ctx.fillStyle = gripGrd;
+          ctx.beginPath();
+          ctx.roundRect(-2, 8, 8, 13, 3);
+          ctx.fill();
+          ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(-2, 8, 8, 13, 3);
+          ctx.stroke();
+
+          // Gem on the side — pulsing
+          const gemPulse = 0.75 + 0.25 * Math.sin(t * 5);
+          ctx.beginPath();
+          ctx.arc(18, -5, 4, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(80,200,255,${gemPulse})`;
+          ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+          ctx.stroke();
+          // Gem shine
+          ctx.beginPath();
+          ctx.arc(16.5, -6.5, 1.2, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+
+          // Sparkles floating around gun
+          for (let sp = 0; sp < 4; sp++) {
+            const sa = t * 1.5 + sp * (Math.PI / 2);
+            const sr = 14 + sp * 3;
+            const sx2 = 14 + Math.cos(sa) * sr;
+            const sy2 = Math.sin(sa) * (sr * 0.4);
+            ctx.beginPath();
+            ctx.arc(sx2, sy2, 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,230,80,${0.5 + 0.5 * Math.sin(t * 3 + sp)})`;
+            ctx.fill();
+          }
+
+        } else {
+          // ---- Bomb Gun (plain pistol, non-maxed) ----
+          ctx.fillStyle = '#222';
+          ctx.beginPath();
+          ctx.roundRect(-2, 1, 6, 9, 2);
+          ctx.fill();
+          ctx.fillStyle = '#333';
+          ctx.beginPath();
+          ctx.roundRect(-1, -4, 16, 5, 2);
+          ctx.fill();
+          ctx.fillStyle = '#555';
+          ctx.beginPath();
+          ctx.roundRect(0, -3, 14, 2, 1);
+          ctx.fill();
+          ctx.fillStyle = '#444';
+          ctx.beginPath();
+          ctx.roundRect(14, -5, 4, 7, 1);
+          ctx.fill();
+        }
       }
 
       // Muzzle flash (when firing)
@@ -834,34 +1608,25 @@
     // =====================================================================
     // SWORD SWING
     // =====================================================================
-    const sword = { swinging: false, angle: 0, baseAngle: 0, timer: 0 };
+    const sword  = { swinging: false, angle: 0, baseAngle: 0, timer: 0, facingRight: true };
+    const sword2 = { swinging: false, angle: 0, baseAngle: 0, timer: 0, facingRight: true }; // mirror blade at 5★
     const SWORD_RANGE = 90;
     const SWORD_ARC   = Math.PI * 1.1;
 
-    function swordSwing() {
-      if (sword.swinging) return;
-      sword.swinging = true;
-      sword.timer    = 0;
-      const facingRight = egg.aimDX >= 0;
-      const tiltAngle   = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
-      sword.baseAngle   = facingRight ? tiltAngle : Math.PI - tiltAngle;
-      sword.angle       = sword.baseAngle - SWORD_ARC / 2;
-      const maxed       = isMaxStar();
-      // 5-star: range is much larger
-      const range = maxed ? SWORD_RANGE * 2.5 : SWORD_RANGE;
+    // Hit a single arc against all monsters; returns indices killed (for shared kill logic)
+    function swordArcHit(baseAngle, range, maxed) {
       for (let j = monsters.length - 1; j >= 0; j--) {
         const m = monsters[j];
         const dx = m.x - egg.x, dy = m.y - egg.y;
         if (Math.sqrt(dx*dx + dy*dy) < range + m.r) {
-          let diff = Math.atan2(dy, dx) - sword.baseAngle;
+          let diff = Math.atan2(dy, dx) - baseAngle;
           while (diff >  Math.PI) diff -= Math.PI * 2;
           while (diff < -Math.PI) diff += Math.PI * 2;
           if (Math.abs(diff) < SWORD_ARC / 2 + 0.2) {
             if (maxed) {
-              // Insta-kill at 5 stars
               if (m.golden) dropWeaponAt(m.x, m.y);
               spawnDeathParticles(m.x, m.y, m.color);
-              spawnDeathParticles(m.x, m.y, '#ffd700');
+              spawnDeathParticles(m.x, m.y, '#44aaff');
               onKill(m);
               monsters.splice(j, 1);
             } else {
@@ -880,49 +1645,166 @@
       }
     }
 
+    function swordSwing() {
+      if (sword.swinging) return;
+      const facingRight = egg.aimDX >= 0;
+      const tiltAngle   = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
+      const baseAngle   = facingRight ? tiltAngle : Math.PI - tiltAngle;
+      const maxed       = isMaxStar();
+      const range       = maxed ? SWORD_RANGE * 2.5 : SWORD_RANGE;
+
+      // Primary sword — remember which way we were facing
+      sword.swinging    = true;
+      sword.timer       = 0;
+      sword.baseAngle   = baseAngle;
+      sword.angle       = baseAngle - SWORD_ARC / 2;
+      sword.facingRight = facingRight;
+      swordArcHit(baseAngle, range, maxed);
+
+      // 5★: launch mirror sword in the opposite arc simultaneously
+      if (maxed) {
+        const mirrorBase    = baseAngle + Math.PI; // 180° opposite
+        sword2.swinging     = true;
+        sword2.timer        = 0;
+        sword2.baseAngle    = mirrorBase;
+        sword2.angle        = mirrorBase - SWORD_ARC / 2;
+        sword2.facingRight  = facingRight;
+        swordArcHit(mirrorBase, range, maxed);
+      }
+    }
+
     function updateSword(dt) {
-      if (!sword.swinging) return;
-      sword.timer += dt * 0.1;
-      sword.angle  = sword.baseAngle - SWORD_ARC / 2 + SWORD_ARC * Math.min(sword.timer, 1);
-      if (sword.timer >= 1) sword.swinging = false;
+      if (sword.swinging) {
+        sword.timer += dt * 0.1;
+        sword.angle  = sword.baseAngle - SWORD_ARC / 2 + SWORD_ARC * Math.min(sword.timer, 1);
+        if (sword.timer >= 1) sword.swinging = false;
+      }
+      if (sword2.swinging) {
+        sword2.timer += dt * 0.1;
+        sword2.angle  = sword2.baseAngle - SWORD_ARC / 2 + SWORD_ARC * Math.min(sword2.timer, 1);
+        if (sword2.timer >= 1) sword2.swinging = false;
+      }
+    }
+
+    // Draw one sword blade — electric blue at 5★, gold otherwise
+    function drawOneSword(sw, maxed, isSecond) {
+      const r = maxed ? SWORD_RANGE * 2.5 : SWORD_RANGE;
+      const bladeCol   = maxed ? '#44bbff' : '#c8c8ff';
+      const guardCol   = maxed ? '#0066ff' : '#ffd700';
+      const armCol     = maxed ? '#2288ff' : '#f9a825';
+      const arcFill    = maxed ? 'rgba(40,140,255,0.11)' : 'rgba(255,215,0,0.09)';
+
+      if (sw.swinging) {
+        const startA = sw.baseAngle - SWORD_ARC / 2;
+        // The pivot side depends on which way the egg was facing when the swing started
+        const fr = sw.facingRight;
+        const pivotX = fr ? egg.rx - 4 : -(egg.rx - 4);
+
+        // Arc sweep fill
+        ctx.beginPath(); ctx.moveTo(0, 0);
+        ctx.arc(0, 0, r, startA, sw.angle);
+        ctx.closePath();
+        ctx.fillStyle = arcFill; ctx.fill();
+
+        // Electric arc trail along the sweep edge (5★ only)
+        if (maxed) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(0, 0, r, startA, sw.angle);
+          ctx.strokeStyle = `rgba(100,200,255,0.55)`;
+          ctx.lineWidth = 6;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.7, startA, sw.angle);
+          ctx.strokeStyle = `rgba(180,230,255,0.18)`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Blade at current sweep angle — pivot from correct side
+        ctx.save(); ctx.rotate(sw.angle);
+        const dir = fr ? 1 : -1;
+        const px  = egg.rx * dir;
+        // Arm from body edge outward
+        ctx.beginPath(); ctx.moveTo(px - dir * 4, 2); ctx.lineTo(px + dir * 10, 2);
+        ctx.strokeStyle = armCol; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+        // Blade tip
+        const bladeStart = px + dir * 10;
+        const bladeEnd   = px + dir * (maxed ? 72 : 55);
+        ctx.beginPath(); ctx.moveTo(bladeStart, 0); ctx.lineTo(bladeEnd, -4);
+        ctx.strokeStyle = bladeCol; ctx.lineWidth = maxed ? 5 : 4;
+        if (maxed) { ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 14; }
+        ctx.stroke(); ctx.shadowBlur = 0;
+        // Guard
+        const guardX = px + dir * 12;
+        ctx.beginPath(); ctx.moveTo(guardX, -10); ctx.lineTo(guardX, 11);
+        ctx.strokeStyle = guardCol; ctx.lineWidth = maxed ? 6 : 5; ctx.stroke();
+        // Blade shine
+        ctx.beginPath(); ctx.moveTo(px + dir * 15, -2); ctx.lineTo(px + dir * (maxed ? 65 : 48), -3);
+        ctx.strokeStyle = 'rgba(255,255,255,0.65)'; ctx.lineWidth = 1.5; ctx.stroke();
+        // 5★: lightning crackle on blade
+        if (maxed) {
+          ctx.strokeStyle = 'rgba(180,240,255,0.85)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          const bstart = px + dir * 14;
+          for (let seg = 0; seg < 5; seg++) {
+            const lx = bstart + dir * seg * 11;
+            seg === 0 ? ctx.moveTo(lx, 0) : ctx.lineTo(lx, 0);
+            ctx.lineTo(lx + dir * 4, (Math.random() - 0.5) * 10);
+            ctx.lineTo(lx + dir * 8, (Math.random() - 0.5) * 6);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else {
+        // Idle pose — sword held on the correct side
+        const facingRight = egg.aimDX >= 0;
+        const tiltAngle   = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
+        ctx.save();
+        if (isSecond) {
+          // Second sword: held behind, pointing backward
+          ctx.translate(facingRight ? -(egg.rx - 2) : (egg.rx - 2), 2);
+          ctx.scale(facingRight ? -1 : 1, 1);
+        } else {
+          // Primary: on the arm side matching facing direction
+          ctx.translate(facingRight ? egg.rx - 2 : -(egg.rx - 2), 2);
+          if (!facingRight) ctx.scale(-1, 1);
+        }
+        ctx.rotate(tiltAngle);
+        // Arm
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(12,0);
+        ctx.strokeStyle = armCol; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+        // Blade
+        ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(maxed ? 66 : 50, -3);
+        ctx.strokeStyle = bladeCol; ctx.lineWidth = maxed ? 5 : 3.5;
+        if (maxed) { ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 12; }
+        ctx.stroke(); ctx.shadowBlur = 0;
+        // Guard
+        ctx.beginPath(); ctx.moveTo(14, -9); ctx.lineTo(14, 10);
+        ctx.strokeStyle = guardCol; ctx.lineWidth = maxed ? 6 : 4; ctx.stroke();
+        // 5★ legendary label on idle blade
+        if (maxed) {
+          ctx.save();
+          ctx.font = 'bold 8px monospace';
+          ctx.fillStyle = '#44aaff';
+          ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 8;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+          ctx.fillText('LEGENDARY', 30, -8);
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
+        ctx.restore();
+      }
     }
 
     function drawSwordArm() {
-      const facingRight = egg.aimDX >= 0;
-      const tiltAngle   = Math.atan2(egg.aimDY, Math.abs(egg.aimDX) || 0.01);
+      const maxed = isMaxStar();
       ctx.save();
       ctx.translate(egg.x, egg.y);
-
-      if (sword.swinging) {
-        const startA = sword.baseAngle - SWORD_ARC / 2;
-        ctx.beginPath(); ctx.moveTo(0, 0);
-        ctx.arc(0, 0, SWORD_RANGE, startA, sword.angle);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(255,215,0,0.09)'; ctx.fill();
-
-        ctx.save(); ctx.rotate(sword.angle);
-        ctx.beginPath(); ctx.moveTo(egg.rx - 4, 2); ctx.lineTo(egg.rx + 10, 2);
-        ctx.strokeStyle = '#f9a825'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(egg.rx + 10, 0); ctx.lineTo(egg.rx + 55, -4);
-        ctx.strokeStyle = '#c8c8ff'; ctx.lineWidth = 4; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(egg.rx + 12, -8); ctx.lineTo(egg.rx + 12, 9);
-        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 5; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(egg.rx + 15, -2); ctx.lineTo(egg.rx + 48, -3);
-        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.restore();
-      } else {
-        ctx.save();
-        ctx.translate(facingRight ? egg.rx - 2 : -(egg.rx - 2), 2);
-        if (!facingRight) ctx.scale(-1, 1);
-        ctx.rotate(tiltAngle);
-        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(12,0);
-        ctx.strokeStyle = '#f9a825'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(50, -3);
-        ctx.strokeStyle = '#c8c8ff'; ctx.lineWidth = 3.5; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(14, -7); ctx.lineTo(14, 8);
-        ctx.strokeStyle = '#ffd700'; ctx.lineWidth = 4; ctx.stroke();
-        ctx.restore();
-      }
+      drawOneSword(sword, maxed, false);
+      if (maxed) drawOneSword(sword2, maxed, true);
       ctx.restore();
     }
 
@@ -1008,9 +1890,11 @@
 
     function explodeBomb(bx, by, radius) {
       const r = radius || BOMB_RADIUS;
-      // 5-star: blast radius doubles
+      // 5-star bomb_gun: blast radius doubles AND spawns a dinosaur ally
       const maxed    = isMaxStar();
+      const isBombGun = (inventory.slots[inventory.equipped] && inventory.slots[inventory.equipped].weapon.id === 'bomb_gun');
       const effectR  = maxed ? r * 2 : r;
+      let killedAny = false;
       for (let j = monsters.length - 1; j >= 0; j--) {
         const m = monsters[j];
         const dx = bx - m.x, dy = by - m.y;
@@ -1022,6 +1906,7 @@
             spawnDeathParticles(m.x, m.y, '#ffd700');
             onKill(m);
             monsters.splice(j, 1);
+            killedAny = true;
           } else {
             m.hp--;
             if (m.hp <= 0) {
@@ -1029,11 +1914,16 @@
               spawnDeathParticles(m.x, m.y, m.color);
               onKill(m);
               monsters.splice(j, 1);
+              killedAny = true;
             } else {
               m.hitFlash = 1.0;
             }
           }
         }
+      }
+      // 5-star bomb_gun: ALWAYS spawn a dino at the blast site
+      if (maxed && isBombGun) {
+        spawnDino(bx, by);
       }
       // Big explosion particle burst
       for (let i = 0; i < 28; i++) {
@@ -1236,36 +2126,55 @@
     let monsterSpawnTimer = 0;
     const SPAWN_INTERVAL = 120; // base; overridden by SPAWN_INTERVAL_CURRENT
 
+    // Wave tier → zombie shape: 1=blob, 2=skull, 3=spider, 4=phantom, 5=demon, 6+=abomination
+    function waveShape() {
+      const t = Math.min(wave.number, 6);
+      return ['blob','blob','skull','spider','phantom','demon','abomination'][t];
+    }
+
     function spawnMonster() {
       if (wave.phase !== 'fighting') return;
       const y = 60 + Math.random() * (canvas.height - 120);
       const isGolden = Math.random() < 0.25;
-      const colors = ['#6a0dad', '#c0392b', '#1a7a1a', '#1a4a8a'];
-      const color = isGolden ? '#d4a017' : colors[Math.floor(Math.random() * colors.length)];
+      // Colors get darker/sicker each wave tier
+      const tierCols = [
+        ['#6a0dad','#c0392b','#1a7a1a','#1a4a8a'],   // w1 blob
+        ['#555','#777','#333','#444'],                 // w2 skull
+        ['#1a1a00','#2a1a00','#1a2200','#001a1a'],     // w3 spider
+        ['#330033','#001133','#330011','#003333'],      // w4 phantom
+        ['#660000','#440022','#220044','#002200'],      // w5 demon
+        ['#000','#111','#0a000a','#000a00'],            // w6+ abomination
+      ];
+      const tier = Math.min(wave.number - 1, 5);
+      const pallete = tierCols[tier];
+      const color = isGolden ? '#d4a017' : pallete[Math.floor(Math.random() * pallete.length)];
       const baseHp = isGolden ? 2 : 1;
+      const shape = waveShape();
       monsters.push({
         x: -30, y,
         r: isGolden ? 22 + Math.random() * 6 : 18 + Math.random() * 10,
         speed: (isGolden ? 0.9 + Math.random() * 0.8 : 1.2 + Math.random() * 1.4) * monsterSpeedMult,
         color, bobAngle: Math.random() * Math.PI * 2,
         hp: baseHp * monsterHpMult, maxHp: baseHp * monsterHpMult,
-        golden: isGolden, boss: false, hitFlash: 0,
+        golden: isGolden, boss: false, hitFlash: 0, shape,
       });
     }
 
     function spawnBoss() {
       wave.bossAlive = true;
       const y = canvas.height / 2;
-      const bossColors = ['#8B0000','#4B0082','#006400','#00008B'];
-      const color = bossColors[(wave.number - 1) % bossColors.length];
-      const hp = (5 + wave.number * 3) * monsterHpMult;
+      // Boss colour escalates each wave — blood red → void black → toxic green → cosmic purple
+      const bossHues = ['#8B0000','#4B0082','#006400','#00008B','#4a0000','#1a001a','#000','#220011'];
+      const color = bossHues[(wave.number - 1) % bossHues.length];
+      const hp = (5 + wave.number * 5) * monsterHpMult;
+      const shape = waveShape();
       monsters.push({
         x: -60, y,
-        r: 45 + wave.number * 4,
-        speed: (0.6 + wave.number * 0.1) * monsterSpeedMult,
+        r: Math.min(45 + wave.number * 6, 120),
+        speed: (0.6 + wave.number * 0.12) * monsterSpeedMult,
         color, bobAngle: 0,
         hp, maxHp: hp,
-        golden: false, boss: true, hitFlash: 0,
+        golden: false, boss: true, hitFlash: 0, shape,
       });
     }
 
@@ -1291,153 +2200,199 @@
       ctx.save();
       ctx.translate(m.x, m.y + bob);
 
-      // ---- Waving arms (drawn behind body) ----
+      const shape = m.shape || 'blob';
+      const f = m.hitFlash;
+      const c1 = f > 0 ? `rgba(255,255,255,${f})` : lighten(m.color);
+      const c2 = f > 0 ? `rgba(220,220,220,${f})` : m.color;
+      const lw =  Math.sin(m.bobAngle * 2.5) * 0.7;
+      const rw = -Math.sin(m.bobAngle * 2.5 + 1) * 0.7;
+
+      // ---- Arms (all shapes share waving arms) ----
       ctx.lineCap = 'round';
-      const leftWave  =  Math.sin(m.bobAngle * 2.5) * 0.7;  // different freq = natural wave
-      const rightWave = -Math.sin(m.bobAngle * 2.5 + 1) * 0.7;
-
-      // Left arm
-      ctx.save();
-      ctx.translate(-m.r * 0.85, -m.r * 0.1);
-      ctx.rotate(leftWave - 0.5);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(-m.r * 0.7, -m.r * 0.5);
-      ctx.strokeStyle = m.color;
-      ctx.lineWidth = m.r * 0.35;
-      ctx.stroke();
-      // Left hand
-      ctx.beginPath();
-      ctx.arc(-m.r * 0.7, -m.r * 0.5, m.r * 0.22, 0, Math.PI * 2);
-      ctx.fillStyle = lighten(m.color);
-      ctx.fill();
-      ctx.restore();
-
-      // Right arm
-      ctx.save();
-      ctx.translate(m.r * 0.85, -m.r * 0.1);
-      ctx.rotate(rightWave + 0.5);
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(m.r * 0.7, -m.r * 0.5);
-      ctx.strokeStyle = m.color;
-      ctx.lineWidth = m.r * 0.35;
-      ctx.stroke();
-      // Right hand
-      ctx.beginPath();
-      ctx.arc(m.r * 0.7, -m.r * 0.5, m.r * 0.22, 0, Math.PI * 2);
-      ctx.fillStyle = lighten(m.color);
-      ctx.fill();
-      ctx.restore();
-
-      // ---- Body ----
-      // Hit flash: overlay white when hitFlash > 0
-      const bodyColor1 = m.hitFlash > 0
-        ? `rgba(255,255,255,${m.hitFlash})`
-        : lighten(m.color);
-      const bodyColor2 = m.hitFlash > 0
-        ? `rgba(220,220,220,${m.hitFlash})`
-        : m.color;
-
-      const grad = ctx.createRadialGradient(-m.r * 0.3, -m.r * 0.3, 2, 0, 0, m.r * 1.3);
-      grad.addColorStop(0, bodyColor1);
-      grad.addColorStop(1, bodyColor2);
-      ctx.beginPath();
-      ctx.arc(0, 0, m.r, 0, Math.PI * 2);
-      ctx.fillStyle = grad;
-      ctx.fill();
-      ctx.strokeStyle = m.golden ? 'rgba(180,130,0,0.7)' : 'rgba(0,0,0,0.4)';
-      ctx.lineWidth = m.golden ? 2.5 : 1.5;
-      ctx.stroke();
-
-      // Golden crown
-      if (m.golden) {
+      const armCount = shape === 'spider' ? 6 : 2;
+      for (let a = 0; a < armCount; a++) {
+        const side = a % 2 === 0 ? -1 : 1;
+        const wave2 = side > 0 ? rw + 0.5 : lw - 0.5;
+        const extraAngle = armCount > 2 ? (a - armCount/2 + 0.5) * 0.5 : 0;
         ctx.save();
-        ctx.fillStyle = '#ffd700';
-        ctx.strokeStyle = '#b8860b';
-        ctx.lineWidth = 1;
-        const cy = -m.r - 2;
-        const cw = m.r * 0.9;
-        // Crown base band
-        ctx.beginPath();
-        ctx.roundRect(-cw, cy - 4, cw * 2, 5, 2);
-        ctx.fill();
-        ctx.stroke();
-        // Three crown points
-        [- cw * 0.7, 0, cw * 0.7].forEach((px, i) => {
-          const h = i === 1 ? 10 : 7; // middle point taller
-          ctx.beginPath();
-          ctx.moveTo(px - cw * 0.25, cy - 3);
-          ctx.lineTo(px, cy - 3 - h);
-          ctx.lineTo(px + cw * 0.25, cy - 3);
-          ctx.fillStyle = '#ffd700';
-          ctx.fill();
-          ctx.strokeStyle = '#b8860b';
-          ctx.stroke();
-        });
-        // Small gem on middle point
-        ctx.beginPath();
-        ctx.arc(0, cy - 11, 2.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ff4444';
-        ctx.fill();
+        ctx.translate(side * m.r * 0.85, -m.r * 0.1);
+        ctx.rotate(wave2 + extraAngle);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(side * m.r * 0.7, -m.r * 0.5);
+        ctx.strokeStyle = m.color; ctx.lineWidth = m.r * (shape==='spider'?0.18:0.35); ctx.stroke();
+        ctx.beginPath(); ctx.arc(side * m.r * 0.7, -m.r * 0.5, m.r * (shape==='spider'?0.12:0.22), 0, Math.PI*2);
+        ctx.fillStyle = lighten(m.color); ctx.fill();
         ctx.restore();
       }
 
-      // Eyes (two angry red dots)
-      ctx.fillStyle = '#ff2222';
-      ctx.beginPath();
-      ctx.arc(-m.r * 0.28, -m.r * 0.15, m.r * 0.15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc( m.r * 0.28, -m.r * 0.15, m.r * 0.15, 0, Math.PI * 2);
-      ctx.fill();
-      // Eye glow
-      ctx.fillStyle = 'rgba(255,255,100,0.7)';
-      ctx.beginPath();
-      ctx.arc(-m.r * 0.28, -m.r * 0.15, m.r * 0.06, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc( m.r * 0.28, -m.r * 0.15, m.r * 0.06, 0, Math.PI * 2);
-      ctx.fill();
+      // ---- Body by shape ----
+      if (shape === 'skull') {
+        // Rounded skull shape
+        const grad = ctx.createRadialGradient(-m.r*0.2,-m.r*0.2,2,0,0,m.r*1.2);
+        grad.addColorStop(0,'#e0e0e0'); grad.addColorStop(1,'#888');
+        ctx.beginPath(); ctx.arc(0,-m.r*0.05,m.r,0,Math.PI*2);
+        ctx.fillStyle = f>0?c1:grad; ctx.fill();
+        ctx.strokeStyle='#333'; ctx.lineWidth=1.5; ctx.stroke();
+        // Jaw
+        ctx.beginPath(); ctx.moveTo(-m.r*0.55,m.r*0.2); ctx.lineTo(-m.r*0.55,m.r*0.7);
+        ctx.lineTo(m.r*0.55,m.r*0.7); ctx.lineTo(m.r*0.55,m.r*0.2);
+        ctx.fillStyle=f>0?c2:'#aaa'; ctx.fill(); ctx.strokeStyle='#333'; ctx.lineWidth=1.5; ctx.stroke();
+        // Hollow eye sockets
+        ctx.fillStyle=f>0?`rgba(0,0,0,${f})`:'#111';
+        ctx.beginPath(); ctx.ellipse(-m.r*0.28,-m.r*0.15,m.r*0.18,m.r*0.22,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.28,-m.r*0.15,m.r*0.18,m.r*0.22,0,0,Math.PI*2); ctx.fill();
+        // Red glow in sockets
+        ctx.fillStyle=`rgba(255,0,0,${0.5+0.3*Math.sin(m.bobAngle*3)})`;
+        ctx.beginPath(); ctx.ellipse(-m.r*0.28,-m.r*0.15,m.r*0.08,m.r*0.10,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.28,-m.r*0.15,m.r*0.08,m.r*0.10,0,0,Math.PI*2); ctx.fill();
+        // Teeth
+        ctx.fillStyle='#fff';
+        for(let t=0;t<5;t++){
+          ctx.beginPath(); ctx.rect(-m.r*0.4+t*m.r*0.2, m.r*0.28, m.r*0.14, m.r*0.2); ctx.fill();
+          ctx.strokeStyle='#555'; ctx.lineWidth=0.8; ctx.stroke();
+        }
 
-      // Jagged mouth
-      ctx.beginPath();
-      ctx.moveTo(-m.r * 0.4, m.r * 0.2);
-      ctx.lineTo(-m.r * 0.2, m.r * 0.38);
-      ctx.lineTo(0,           m.r * 0.22);
-      ctx.lineTo( m.r * 0.2, m.r * 0.38);
-      ctx.lineTo( m.r * 0.4, m.r * 0.2);
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.lineWidth = 1.5;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      ctx.stroke();
+      } else if (shape === 'spider') {
+        // Low wide body
+        const grad = ctx.createRadialGradient(0,0,2,0,0,m.r);
+        grad.addColorStop(0,'#222'); grad.addColorStop(1,'#000');
+        ctx.beginPath(); ctx.ellipse(0,0,m.r*1.3,m.r*0.7,0,0,Math.PI*2);
+        ctx.fillStyle=f>0?c1:grad; ctx.fill(); ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke();
+        // Eyes — 8 red dots
+        const eyePos=[[-0.4,-0.3],[-0.15,-0.45],[0.15,-0.45],[0.4,-0.3],[-0.35,0.0],[0.35,0.0],[-0.2,0.2],[0.2,0.2]];
+        eyePos.forEach(([ex,ey])=>{
+          ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,m.r*0.09,0,Math.PI*2);
+          ctx.fillStyle=`rgba(255,0,0,${0.7+0.3*Math.sin(m.bobAngle*4)})`; ctx.fill();
+        });
+        // Fangs
+        ctx.fillStyle='#ddd';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.12,m.r*0.3); ctx.lineTo(-m.r*0.22,m.r*0.6); ctx.lineTo(0,m.r*0.3); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(m.r*0.12,m.r*0.3); ctx.lineTo(m.r*0.22,m.r*0.6); ctx.lineTo(0,m.r*0.3); ctx.closePath(); ctx.fill();
 
-      // Boss HP bar
+      } else if (shape === 'phantom') {
+        // Wispy cloak
+        const grad = ctx.createRadialGradient(0,-m.r*0.1,2,0,0,m.r*1.4);
+        grad.addColorStop(0,f>0?'rgba(255,255,255,0.9)':'rgba(120,0,180,0.9)');
+        grad.addColorStop(0.7,f>0?`rgba(255,255,255,${f*0.5})`:'rgba(60,0,100,0.5)');
+        grad.addColorStop(1,'transparent');
+        ctx.beginPath(); ctx.arc(0,0,m.r*1.4,0,Math.PI*2);
+        ctx.fillStyle=grad; ctx.fill();
+        // Torn bottom edge
+        ctx.beginPath(); ctx.moveTo(-m.r,m.r*0.3);
+        for(let i=0;i<=8;i++){
+          const wx=-m.r+i*m.r*0.25;
+          const wy=m.r*0.4+Math.sin(m.bobAngle*2+i)*m.r*0.35*(i%2===0?1:-0.6);
+          ctx.lineTo(wx,wy);
+        }
+        ctx.lineTo(m.r,m.r*0.3); ctx.closePath();
+        ctx.fillStyle=f>0?'rgba(255,255,255,0.3)':'rgba(40,0,70,0.6)'; ctx.fill();
+        // Glowing white eyes
+        ctx.fillStyle=`rgba(255,255,255,${0.8+0.2*Math.sin(m.bobAngle*3)})`;
+        ctx.beginPath(); ctx.ellipse(-m.r*0.28,-m.r*0.12,m.r*0.13,m.r*0.18,0,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.28,-m.r*0.12,m.r*0.13,m.r*0.18,0,0,Math.PI*2); ctx.fill();
+
+      } else if (shape === 'demon') {
+        // Angular horned body
+        const grad = ctx.createRadialGradient(-m.r*0.3,-m.r*0.3,2,0,0,m.r*1.2);
+        grad.addColorStop(0,f>0?'#fff':'#880000'); grad.addColorStop(1,f>0?'#ccc':'#330000');
+        ctx.beginPath(); ctx.arc(0,0,m.r,0,Math.PI*2);
+        ctx.fillStyle=grad; ctx.fill(); ctx.strokeStyle='#220000'; ctx.lineWidth=2; ctx.stroke();
+        // Horns
+        ctx.fillStyle=f>0?'#fff':'#cc2200';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.3,-m.r); ctx.lineTo(-m.r*0.55,-m.r*1.8); ctx.lineTo(-m.r*0.05,-m.r); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo( m.r*0.3,-m.r); ctx.lineTo( m.r*0.55,-m.r*1.8); ctx.lineTo( m.r*0.05,-m.r); ctx.closePath(); ctx.fill();
+        // Eyes — vertical slits
+        ctx.fillStyle=f>0?'#fff':'#ff4400';
+        ctx.beginPath(); ctx.ellipse(-m.r*0.28,-m.r*0.12,m.r*0.1,m.r*0.2,-0.2,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.28,-m.r*0.12,m.r*0.1,m.r*0.2, 0.2,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#000';
+        ctx.beginPath(); ctx.ellipse(-m.r*0.28,-m.r*0.12,m.r*0.03,m.r*0.15,-0.2,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.28,-m.r*0.12,m.r*0.03,m.r*0.15, 0.2,0,Math.PI*2); ctx.fill();
+        // Fanged grin
+        ctx.beginPath(); ctx.arc(0,m.r*0.2,m.r*0.35,0.1,Math.PI-0.1); ctx.strokeStyle='rgba(0,0,0,0.7)'; ctx.lineWidth=2; ctx.stroke();
+        ctx.fillStyle='#eee';
+        [-0.25,-0.08,0.08,0.25].forEach(tx=>{
+          ctx.beginPath(); ctx.moveTo(tx*m.r,m.r*0.22); ctx.lineTo(tx*m.r,m.r*0.46); ctx.lineTo((tx+0.09)*m.r,m.r*0.22); ctx.closePath(); ctx.fill();
+        });
+
+      } else if (shape === 'abomination') {
+        // Asymmetric mutant blob with tentacle stumps
+        const grad = ctx.createRadialGradient(-m.r*0.2,-m.r*0.2,2,0,0,m.r*1.3);
+        grad.addColorStop(0,f>0?'#fff':'#001a00'); grad.addColorStop(0.5,f>0?'#ccc':'#002200'); grad.addColorStop(1,'#000');
+        // Pulsing irregular body
+        ctx.beginPath();
+        for(let ang=0;ang<Math.PI*2;ang+=Math.PI/8){
+          const rr=m.r*(0.8+0.35*Math.sin(ang*3+m.bobAngle*2));
+          ang===0?ctx.moveTo(Math.cos(ang)*rr,Math.sin(ang)*rr):ctx.lineTo(Math.cos(ang)*rr,Math.sin(ang)*rr);
+        }
+        ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+        ctx.strokeStyle=f>0?'rgba(200,255,200,0.5)':'rgba(0,80,0,0.5)'; ctx.lineWidth=2; ctx.stroke();
+        // Many glowing eyes (5 random-ish positions)
+        [[-.35,-.25],[.35,-.2],[0,-.45],[-.2,.1],[.25,.15]].forEach(([ex,ey],i)=>{
+          ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,m.r*0.13,0,Math.PI*2);
+          ctx.fillStyle=f>0?'#fff':`rgba(0,255,0,${0.6+0.4*Math.sin(m.bobAngle*4+i)})`; ctx.fill();
+          ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,m.r*0.06,0,Math.PI*2);
+          ctx.fillStyle='#000'; ctx.fill();
+        });
+        // Dripping slime
+        ctx.fillStyle=f>0?'rgba(200,255,200,0.3)':'rgba(0,200,0,0.35)';
+        [-.3,0,.3].forEach(dx=>{
+          const drip=m.r*0.2+Math.sin(m.bobAngle+dx*10)*m.r*0.15;
+          ctx.beginPath(); ctx.ellipse(dx*m.r,m.r*0.7+drip,m.r*0.07,m.r*0.2,0,0,Math.PI*2); ctx.fill();
+        });
+
+      } else {
+        // Default blob (wave 1)
+        const grad = ctx.createRadialGradient(-m.r*0.3,-m.r*0.3,2,0,0,m.r*1.3);
+        grad.addColorStop(0,c1); grad.addColorStop(1,c2);
+        ctx.beginPath(); ctx.arc(0,0,m.r,0,Math.PI*2);
+        ctx.fillStyle=grad; ctx.fill();
+        ctx.strokeStyle=m.golden?'rgba(180,130,0,0.7)':'rgba(0,0,0,0.4)';
+        ctx.lineWidth=m.golden?2.5:1.5; ctx.stroke();
+        // Eyes
+        ctx.fillStyle='#ff2222';
+        ctx.beginPath(); ctx.arc(-m.r*0.28,-m.r*0.15,m.r*0.15,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.28,-m.r*0.15,m.r*0.15,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='rgba(255,255,100,0.7)';
+        ctx.beginPath(); ctx.arc(-m.r*0.28,-m.r*0.15,m.r*0.06,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.28,-m.r*0.15,m.r*0.06,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-m.r*0.4,m.r*0.2); ctx.lineTo(-m.r*0.2,m.r*0.38);
+        ctx.lineTo(0,m.r*0.22); ctx.lineTo(m.r*0.2,m.r*0.38); ctx.lineTo(m.r*0.4,m.r*0.2);
+        ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1.5; ctx.lineJoin='round'; ctx.stroke();
+      }
+
+      // Golden crown (all shapes)
+      if (m.golden) {
+        ctx.save();
+        ctx.fillStyle='#ffd700'; ctx.strokeStyle='#b8860b'; ctx.lineWidth=1;
+        const cy=-m.r-2, cw=m.r*0.9;
+        ctx.beginPath(); ctx.roundRect(-cw,cy-4,cw*2,5,2); ctx.fill(); ctx.stroke();
+        [-cw*0.7,0,cw*0.7].forEach((px,i)=>{
+          const h=i===1?10:7;
+          ctx.beginPath(); ctx.moveTo(px-cw*0.25,cy-3); ctx.lineTo(px,cy-3-h); ctx.lineTo(px+cw*0.25,cy-3);
+          ctx.fillStyle='#ffd700'; ctx.fill(); ctx.strokeStyle='#b8860b'; ctx.stroke();
+        });
+        ctx.beginPath(); ctx.arc(0,cy-11,2.5,0,Math.PI*2); ctx.fillStyle='#ff4444'; ctx.fill();
+        ctx.restore();
+      }
+
+      // Boss HP bar (all shapes)
       if (m.boss) {
-        const barW = m.r * 2.5;
-        const barH = 8;
-        const bx = -barW / 2;
-        const by = -m.r - 22;
-        ctx.fillStyle = '#330000';
-        ctx.beginPath();
-        ctx.roundRect(bx, by, barW, barH, 3);
-        ctx.fill();
-        const pct = m.hp / m.maxHp;
-        ctx.fillStyle = pct > 0.5 ? '#cc0000' : pct > 0.25 ? '#ff6600' : '#ff0000';
-        ctx.beginPath();
-        ctx.roundRect(bx, by, barW * pct, barH, 3);
-        ctx.fill();
-        ctx.strokeStyle = '#660000';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, barW, barH, 3);
-        ctx.stroke();
-        ctx.font = 'bold 9px monospace';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${m.hp}/${m.maxHp}`, 0, by + barH / 2);
+        const barW=m.r*2.5, barH=10, bx=-barW/2, by=-m.r-26;
+        ctx.fillStyle='#330000'; ctx.beginPath(); ctx.roundRect(bx,by,barW,barH,4); ctx.fill();
+        const pct=m.hp/m.maxHp;
+        ctx.fillStyle=pct>0.5?'#cc0000':pct>0.25?'#ff6600':'#ff0000';
+        ctx.beginPath(); ctx.roundRect(bx,by,barW*pct,barH,4); ctx.fill();
+        ctx.strokeStyle='#660000'; ctx.lineWidth=1.5;
+        ctx.beginPath(); ctx.roundRect(bx,by,barW,barH,4); ctx.stroke();
+        // Wave tier label on boss
+        const tierNames=['','','SKULL','SPIDER','PHANTOM','DEMON','ABOMINATION'];
+        const bLabel=(tierNames[Math.min(wave.number,6)]||'BOSS')+' BOSS';
+        ctx.font='bold 10px monospace'; ctx.fillStyle='#ff4444'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        ctx.shadowColor='#ff0000'; ctx.shadowBlur=8;
+        ctx.fillText(bLabel,0,by-2);
+        ctx.shadowBlur=0;
+        ctx.font='bold 8px monospace'; ctx.fillStyle='#fff'; ctx.textBaseline='middle';
+        ctx.fillText(`${m.hp}/${m.maxHp}`,0,by+barH/2);
       }
 
       ctx.restore();
@@ -1528,19 +2483,138 @@
     }
 
     // --- Subtle grid background ---
-    function drawBackground() {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // =====================================================================
+    // THEME / BACKGROUND SYSTEM
+    // =====================================================================
+    let activeTheme = 'space'; // 'space' | 'sonic' | 'lava'
 
-      // Very faint dot grid
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
-      const spacing = 40;
-      for (let x = spacing; x < canvas.width; x += spacing) {
-        for (let y = spacing; y < canvas.height; y += spacing) {
-          ctx.beginPath();
-          ctx.arc(x, y, 1, 0, Math.PI * 2);
-          ctx.fill();
+    // Pre-generate stable star field
+    const STARS = Array.from({length: 180}, () => ({
+      x: Math.random(), y: Math.random(),
+      r: 0.5 + Math.random() * 1.5,
+      bright: Math.random(),
+      speed: 0.1 + Math.random() * 0.4,
+    }));
+    let bgScroll = 0;
+
+    function applyTheme(code) {
+      const c = code.trim().toLowerCase();
+      const msgEl = document.getElementById('code-msg');
+      if (c === 'sonic') {
+        activeTheme = 'sonic';
+        msgEl.textContent = '✔ SONIC MODE!';
+        msgEl.style.color = '#44aaff';
+      } else if (c === 'lava') {
+        activeTheme = 'lava';
+        msgEl.textContent = '✔ LAVA WORLD!';
+        msgEl.style.color = '#ff4400';
+      } else if (c === 'space' || c === 'reset') {
+        activeTheme = 'space';
+        msgEl.textContent = '✔ SPACE MODE';
+        msgEl.style.color = '#4cff88';
+      } else {
+        msgEl.textContent = '✘ unknown code';
+        msgEl.style.color = '#e74c3c';
+      }
+      setTimeout(() => { msgEl.textContent = ''; }, 2500);
+    }
+
+    document.getElementById('code-btn').addEventListener('click', () => {
+      applyTheme(document.getElementById('code-input').value);
+      document.getElementById('code-input').value = '';
+    });
+    document.getElementById('code-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        applyTheme(e.target.value);
+        e.target.value = '';
+      }
+    });
+
+    function drawBackground() {
+      bgScroll += 0.3;
+
+      if (activeTheme === 'sonic') {
+        // Blue sky gradient + scrolling checkerboard floor
+        const sky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        sky.addColorStop(0, '#1a6bd4');
+        sky.addColorStop(0.6, '#5baaf5');
+        sky.addColorStop(1, '#89c4f8');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Checkerboard ground strip
+        const gY = canvas.height * 0.72;
+        ctx.fillStyle = '#3d8c3d';
+        ctx.fillRect(0, gY, canvas.width, canvas.height - gY);
+        const cSize = 32;
+        const offset = bgScroll % (cSize * 2);
+        for (let cx2 = -cSize * 2 + (offset % cSize); cx2 < canvas.width + cSize; cx2 += cSize * 2) {
+          for (let cy2 = gY; cy2 < canvas.height; cy2 += cSize) {
+            ctx.fillStyle = ((Math.floor(cx2/cSize) + Math.floor((cy2-gY)/cSize)) % 2 === 0) ? '#2d6e2d' : '#3d8c3d';
+            ctx.fillRect(cx2, cy2, cSize, cSize);
+          }
         }
+        // Clouds
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        [[80, 60], [240, 40], [420, 80], [600, 50]].forEach(([cx2, cy2]) => {
+          const bx2 = ((cx2 - bgScroll * 0.5) % (canvas.width + 120) + canvas.width + 120) % (canvas.width + 120) - 60;
+          ctx.beginPath(); ctx.ellipse(bx2, cy2, 45, 22, 0, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(bx2+30, cy2-10, 30, 18, 0, 0, Math.PI*2); ctx.fill();
+        });
+
+      } else if (activeTheme === 'lava') {
+        // Dark rocky background + lava cracks
+        ctx.fillStyle = '#1a0800';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Lava glow veins
+        const t2 = bgScroll * 0.02;
+        for (let i = 0; i < 8; i++) {
+          const x1 = (i / 8 + Math.sin(t2 + i) * 0.05) * canvas.width;
+          const y1 = (Math.cos(t2 * 0.7 + i * 1.3) * 0.3 + 0.5) * canvas.height;
+          const grd = ctx.createRadialGradient(x1, y1, 5, x1, y1, 90);
+          grd.addColorStop(0, `rgba(255,${80 + i*10},0,${0.25 + 0.1*Math.sin(t2+i)})`);
+          grd.addColorStop(1, 'transparent');
+          ctx.fillStyle = grd;
+          ctx.beginPath(); ctx.arc(x1, y1, 90, 0, Math.PI*2); ctx.fill();
+        }
+        // Rock grid
+        ctx.strokeStyle = 'rgba(80,20,0,0.4)';
+        ctx.lineWidth = 1;
+        for (let rx = 0; rx < canvas.width; rx += 48) {
+          ctx.beginPath(); ctx.moveTo(rx, 0); ctx.lineTo(rx, canvas.height); ctx.stroke();
+        }
+        for (let ry = 0; ry < canvas.height; ry += 48) {
+          ctx.beginPath(); ctx.moveTo(0, ry); ctx.lineTo(canvas.width, ry); ctx.stroke();
+        }
+
+      } else {
+        // SPACE (default) — deep space with scrolling stars and nebula
+        const spaceBg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        spaceBg.addColorStop(0, '#000008');
+        spaceBg.addColorStop(0.5, '#04001a');
+        spaceBg.addColorStop(1, '#08000f');
+        ctx.fillStyle = spaceBg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Nebula wisps
+        const nb = ctx.createRadialGradient(canvas.width*0.3, canvas.height*0.4, 20, canvas.width*0.3, canvas.height*0.4, 220);
+        nb.addColorStop(0, 'rgba(80,0,120,0.08)');
+        nb.addColorStop(1, 'transparent');
+        ctx.fillStyle = nb; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const nb2 = ctx.createRadialGradient(canvas.width*0.75, canvas.height*0.6, 10, canvas.width*0.75, canvas.height*0.6, 180);
+        nb2.addColorStop(0, 'rgba(0,40,100,0.10)');
+        nb2.addColorStop(1, 'transparent');
+        ctx.fillStyle = nb2; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Stars
+        STARS.forEach(s => {
+          const sx = (s.x * canvas.width + bgScroll * s.speed * 0.4) % canvas.width;
+          const sy = s.y * canvas.height;
+          const alpha = 0.3 + s.bright * 0.7 * (0.7 + 0.3 * Math.sin(bgScroll * 0.05 + s.bright * 10));
+          ctx.beginPath();
+          ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+          ctx.fill();
+        });
       }
     }
 
@@ -1553,6 +2627,10 @@
       // E: use kid to heal
       if ((e.key === 'e' || e.key === 'E') && !e.repeat) {
         useKid();
+      }
+      // R: ride / dismount nearest dino
+      if ((e.key === 'r' || e.key === 'R') && !e.repeat) {
+        tryRideDino();
       }
       // 1-4: equip slot
       if (['1','2','3','4'].includes(e.key)) {
@@ -1577,8 +2655,10 @@
       }
       if (egg.hp <= 0 && !gameOver) {
         gameOver = true;
-        gameoverStats.textContent = `Wave ${wave.number} · ${coins} coins · ${diamonds} diamonds`;
+        gameoverStats.textContent = `Wave ${wave.number} · ${coins} 🪙 · ${diamonds} 💎`;
         gameoverEl.classList.add('show');
+        wheelSpun = { coin: false, diamond: false };
+        initWheels();
         return;
       }
 
@@ -1588,6 +2668,7 @@
         if (wave.intermissionTimer <= 0) {
           waveBarFill.style.background = 'linear-gradient(90deg,#ff4400,#ff9900)';
           waveBarFill.style.width = '0%';
+          upgradeDinosForWave();
           startWave(wave.number + 1);
         }
       }
@@ -1657,18 +2738,14 @@
           }
         }
       }
-      // Update health bar
+      // Update health bar — rainbow stays fixed, only width changes
       healthFill.style.width = (egg.hp / egg.maxHp * 100) + '%';
-      const hpPct = egg.hp / egg.maxHp;
-      healthFill.style.background = hpPct > 0.5
-        ? 'linear-gradient(90deg,#27ae60,#2ecc71)'
-        : hpPct > 0.25
-          ? 'linear-gradient(90deg,#e67e22,#f39c12)'
-          : 'linear-gradient(90deg,#c0392b,#e74c3c)';
+      healthBarText.textContent = `❤️ ${egg.hp} / ${egg.maxHp}`;
 
       updateParticles();
       updateBullets(dt);
       updateMonsters(dt);
+      updateDinosaurs(dt);
       updateDeathParticles(dt);
       updateShockwaves(dt);
       updateDrops(dt);
@@ -1682,6 +2759,7 @@
 
       // Draw
       drawBackground();
+      drawDinosaurs();
       drawKidOrbiters();
       drawDrops();
       drawMonsters();
@@ -1744,6 +2822,176 @@
 
     startWave(1);
     requestAnimationFrame(loop);
+ 
+    // =====================================================================
+    // SPIN WHEELS
+    // =====================================================================
+    const COIN_WHEEL_COST    = 20;
+    const DIAMOND_WHEEL_COST = 8;
+
+    // Coin wheel — costs 20 🪙, casual rewards (HP, coins, kids, items)
+    const COIN_SEGMENTS = [
+      { label: '+1 Kid',    icon: '🥚', color: '#e67e22', reward: () => { addKid();                                          return '+1 Kid 🥚'; } },
+      { label: '+30 Coins', icon: '🪙', color: '#f39c12', reward: () => { addCoins(30);                                      return '+30 🪙 Coins'; } },
+      { label: '+60 HP',    icon: '❤️', color: '#27ae60', reward: () => { egg.hp = Math.min(egg.maxHp, egg.hp + 60);         return '+60 HP!'; } },
+      { label: 'Bazooka+',  icon: '💥', color: '#8e44ad', reward: () => { grantWeapon('bazooka');                            return 'Bazooka upgraded!'; } },
+      { label: '+2 Kids',   icon: '🐣', color: '#d35400', reward: () => { addKid(); addKid();                                return '+2 Kids 🐣'; } },
+      { label: '+15 Coins', icon: '🪙', color: '#d4ac0d', reward: () => { addCoins(15);                                      return '+15 🪙 Coins'; } },
+      { label: '+40 HP',    icon: '💚', color: '#148f77', reward: () => { egg.hp = Math.min(egg.maxHp, egg.hp + 40);         return '+40 HP!'; } },
+      { label: 'RPG+',      icon: '🚀', color: '#4488ff', reward: () => { grantWeapon('rpg');                                return 'RPG upgraded!'; } },
+    ];
+
+    // Diamond wheel — costs 8 💎, premium rewards (weapons, backgrounds, max HP)
+    const DIAMOND_SEGMENTS = [
+      { label: 'Sword 5★',   icon: '⚔️', color: '#c0392b', reward: () => { for(let i=0;i<5;i++) grantWeapon('sword');              return '⚔️ Sword → 5★!'; } },
+      { label: 'SONIC BG',   icon: '💙', color: '#1a8cff', reward: () => { applyTheme('sonic');                                     return '💙 Sonic Background!'; } },
+      { label: 'Dino Cann+', icon: '💣', color: '#d4ac0d', reward: () => { grantWeapon('bomb_gun');                                 return '💣 Dino Cannon ⬆'; } },
+      { label: 'MAX HP+50',  icon: '❤️', color: '#117a65', reward: () => { egg.maxHp += 50; egg.hp = egg.maxHp;                     return '❤️ Max HP +50!'; } },
+      { label: 'RPG 5★',     icon: '🚀', color: '#154360', reward: () => { for(let i=0;i<5;i++) grantWeapon('rpg');                 return '🚀 RPG → 5★!'; } },
+      { label: 'LAVA BG',    icon: '🔥', color: '#b03a00', reward: () => { applyTheme('lava');                                      return '🔥 Lava Background!'; } },
+      { label: 'All Weapons',icon: '🎁', color: '#784212', reward: () => { ['rpg','bazooka','sword'].forEach(w=>grantWeapon(w));    return '🎁 All weapons unlocked!'; } },
+      { label: '+100 HP',    icon: '💖', color: '#1a5276', reward: () => { egg.hp = Math.min(egg.maxHp, egg.hp + 100);              return '+100 HP!'; } },
+    ];
+
+    let wheelSpun = { coin: false, diamond: false };
+
+    function drawWheel(canvasEl, segments, rotation) {
+      const wctx = canvasEl.getContext('2d');
+      const cx = canvasEl.width / 2, cy = canvasEl.height / 2, r = cx - 4;
+      const arc = (Math.PI * 2) / segments.length;
+      wctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+      segments.forEach((seg, i) => {
+        const start = rotation + i * arc;
+        const end   = start + arc;
+        // Slice fill
+        wctx.beginPath();
+        wctx.moveTo(cx, cy);
+        wctx.arc(cx, cy, r, start, end);
+        wctx.closePath();
+        wctx.fillStyle = seg.color;
+        wctx.fill();
+        wctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        wctx.lineWidth = 1.5;
+        wctx.stroke();
+        // Draw text label + emoji icon along the slice
+        wctx.save();
+        wctx.translate(cx, cy);
+        wctx.rotate(start + arc / 2);
+        wctx.textAlign = 'right';
+        wctx.fillStyle = '#fff';
+        wctx.shadowColor = '#000';
+        wctx.shadowBlur = 3;
+        // Icon (emoji) — slightly larger font, closer to edge
+        wctx.font = 'bold 13px sans-serif';
+        wctx.fillText(seg.icon, r - 8, -6);
+        // Label text beneath icon
+        wctx.font = 'bold 9px monospace';
+        wctx.fillText(seg.label, r - 8, 7);
+        wctx.restore();
+      });
+      // Pointer notch at top
+      wctx.save();
+      wctx.fillStyle = '#fff';
+      wctx.strokeStyle = '#000';
+      wctx.lineWidth = 1;
+      wctx.beginPath();
+      wctx.moveTo(cx - 7, 0);
+      wctx.lineTo(cx + 7, 0);
+      wctx.lineTo(cx, 16);
+      wctx.closePath();
+      wctx.fill();
+      wctx.stroke();
+      wctx.restore();
+      // Center cap
+      wctx.beginPath();
+      wctx.arc(cx, cy, 14, 0, Math.PI * 2);
+      wctx.fillStyle = '#111';
+      wctx.fill();
+      wctx.strokeStyle = '#555';
+      wctx.lineWidth = 2;
+      wctx.stroke();
+    }
+
+    function spinWheel(canvasEl, segments, resultEl, btnEl, onDone) {
+      btnEl.disabled = true;
+      const totalSpins = (5 + Math.random() * 4) * Math.PI * 2; // 5–9 full spins
+      const extra      = Math.random() * Math.PI * 2;            // random landing offset
+      const target     = totalSpins + extra;
+      const duration   = 3500; // ms
+      let startTime    = null;
+      const startRot   = 0;
+
+      function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+      function frame(ts) {
+        if (!startTime) startTime = ts;
+        const elapsed = ts - startTime;
+        const t   = Math.min(elapsed / duration, 1);
+        const rot = startRot + target * easeOut(t);
+        drawWheel(canvasEl, segments, rot);
+        if (t < 1) {
+          requestAnimationFrame(frame);
+        } else {
+          // Determine winning segment — pointer is at top (−π/2), wheel rotated by rot
+          const arc = (Math.PI * 2) / segments.length;
+          // Pointer at top = angle -π/2 in wheel's frame
+          const pointerAngle = ((-Math.PI / 2 - rot) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+          const winIdx = Math.floor(pointerAngle / arc) % segments.length;
+          const seg    = segments[((winIdx % segments.length) + segments.length) % segments.length];
+          const msg    = seg.reward();
+          resultEl.textContent = '✨ ' + msg;
+          resultEl.style.color = seg.color;
+          onDone();
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function initWheels() {
+      const wCoin    = document.getElementById('wheel-coin');
+      const wDiamond = document.getElementById('wheel-diamond');
+      const btnC     = document.getElementById('btn-coin');
+      const btnD     = document.getElementById('btn-diamond');
+      const resC     = document.getElementById('result-coin');
+      const resD     = document.getElementById('result-diamond');
+      const coinLbl  = document.getElementById('coin-cost-label');
+      const diamLbl  = document.getElementById('diamond-cost-label');
+
+      drawWheel(wCoin,    COIN_SEGMENTS,    0);
+      drawWheel(wDiamond, DIAMOND_SEGMENTS, 0);
+
+      // Live currency labels
+      coinLbl.textContent = `Costs ${COIN_WHEEL_COST} 🪙 · you have ${coins} 🪙`;
+      diamLbl.textContent = `Costs ${DIAMOND_WHEEL_COST} 💎 · you have ${diamonds} 💎`;
+
+      btnC.onclick = () => {
+        if (wheelSpun.coin) return;
+        if (coins < COIN_WHEEL_COST) {
+          resC.textContent = `Need ${COIN_WHEEL_COST} 🪙 (you have ${coins})`;
+          resC.style.color = '#e74c3c';
+          return;
+        }
+        coins -= COIN_WHEEL_COST;
+        coinCountEl.textContent = coins;
+        coinLbl.textContent = `Spent ${COIN_WHEEL_COST} 🪙 · ${coins} remaining`;
+        wheelSpun.coin = true;
+        spinWheel(wCoin, COIN_SEGMENTS, resC, btnC, () => {});
+      };
+
+      btnD.onclick = () => {
+        if (wheelSpun.diamond) return;
+        if (diamonds < DIAMOND_WHEEL_COST) {
+          resD.textContent = `Need ${DIAMOND_WHEEL_COST} 💎 (you have ${diamonds})`;
+          resD.style.color = '#e74c3c';
+          return;
+        }
+        diamonds -= DIAMOND_WHEEL_COST;
+        diamondCountEl.textContent = diamonds;
+        diamLbl.textContent = `Spent ${DIAMOND_WHEEL_COST} 💎 · ${diamonds} remaining`;
+        wheelSpun.diamond = true;
+        spinWheel(wDiamond, DIAMOND_SEGMENTS, resD, btnD, () => {});
+      };
+    }
   </script>
 </body>
 </html>
