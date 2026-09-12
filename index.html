@@ -219,6 +219,15 @@
     <div id="go-header">
       <h1>💀 YOU DIED</h1>
       <p id="gameover-stats"></p>
+      <div id="go-themes" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px 0 4px;">
+        <button onclick="applyTheme('space')"     style="padding:5px 12px;background:#04001a;border:1px solid #4488ff;color:#4488ff;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">🌌 SPACE</button>
+        <button onclick="applyTheme('sonic')"     style="padding:5px 12px;background:#001a33;border:1px solid #44aaff;color:#44aaff;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">🦔 SONIC</button>
+        <button onclick="applyTheme('mario')"     style="padding:5px 12px;background:#330000;border:1px solid #e52222;color:#e52222;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">🍄 MARIO</button>
+        <button onclick="applyTheme('minecraft')" style="padding:5px 12px;background:#0a1a00;border:1px solid #55cc44;color:#55cc44;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">⛏ MINECRAFT</button>
+        <button onclick="applyTheme('backrooms')" style="padding:5px 12px;background:#1a1400;border:1px solid #ccaa55;color:#ccaa55;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">🚪 BACKROOMS</button>
+        <button onclick="applyTheme('lava')"      style="padding:5px 12px;background:#1a0000;border:1px solid #ff4400;color:#ff4400;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">🌋 LAVA</button>
+        <button onclick="applyTheme('forest')"    style="padding:5px 12px;background:#041204;border:1px solid #44aa22;color:#44aa22;border-radius:6px;font-family:monospace;font-size:11px;cursor:pointer;">🌲 FOREST</button>
+      </div>
     </div>
     <div id="wheels-row">
       <!-- Coin Wheel (golden) -->
@@ -447,6 +456,7 @@
       SPAWN_INTERVAL_CURRENT = Math.max(40, 120 - n * 8);
       monsterSpeedMult       = 1 + (n - 1) * 0.18;
       monsterHpMult          = Math.ceil(1 + (n - 1) * 0.5);
+      if (n === 1) initCompanions();
     }
 
     function onKill(m) {
@@ -1068,6 +1078,285 @@
     function drawDinosaurs() {
       for (const d of dinosaurs) drawDinosaur(d);
       if (megaDino) drawDinosaur(megaDino);
+    }
+
+    // =====================================================================
+    // COMPANIONS  (Tails & Knuckles for Sonic · Mario & Luigi for Mario)
+    // =====================================================================
+    const companions = [];
+
+    function initCompanions() {
+      companions.length = 0;
+      const defs = {
+        sonic:  [{ id: 'tails',    color: '#f5b800', accentColor: '#fff',    eyeColor: '#4488ff' },
+                 { id: 'knuckles', color: '#cc2200', accentColor: '#f5edd5', eyeColor: '#22aa44' }],
+        mario:  [{ id: 'mario',    color: '#e52222', accentColor: '#f5b800', eyeColor: '#111'    },
+                 { id: 'luigi',    color: '#22aa22', accentColor: '#f5b800', eyeColor: '#111'    }],
+      };
+      const list = defs[activeTheme] || [];
+      list.forEach((def, i) => {
+        companions.push({
+          id:           def.id,
+          color:        def.color,
+          accentColor:  def.accentColor,
+          eyeColor:     def.eyeColor,
+          orbitAngle:   (i / list.length) * Math.PI * 2,
+          orbitRadius:  72 + i * 18,
+          x:            egg.x,
+          y:            egg.y,
+          hp:           30,
+          maxHp:        30,
+          atk:          12,
+          atkCooldown:  0,
+          bobAngle:     i * 1.5,
+          hitFlash:     0,
+        });
+      });
+    }
+
+    function updateCompanions(dt) {
+      for (let ci = companions.length - 1; ci >= 0; ci--) {
+        const c = companions[ci];
+        c.bobAngle += 0.08 * dt;
+
+        // Orbit the egg
+        c.orbitAngle += 0.018 * dt;
+        const tx = egg.x + Math.cos(c.orbitAngle) * c.orbitRadius;
+        const ty = egg.y + Math.sin(c.orbitAngle) * c.orbitRadius;
+        c.x += (tx - c.x) * 0.14 * dt;
+        c.y += (ty - c.y) * 0.14 * dt;
+
+        if (c.hitFlash > 0) c.hitFlash -= 0.08 * dt;
+
+        // Attack nearest monster in range
+        if (c.atkCooldown > 0) {
+          c.atkCooldown -= dt;
+        } else {
+          let nearest = null, nearDist = 180;
+          for (const m of monsters) {
+            const dx = m.x - c.x, dy = m.y - c.y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < nearDist) { nearDist = d; nearest = m; }
+          }
+          if (nearest) {
+            nearest.hp -= c.atk;
+            nearest.hitFlash = 1.0;
+            c.atkCooldown = 55;
+            spawnDeathParticles(nearest.x, nearest.y, c.color);
+            if (nearest.hp <= 0) {
+              if (nearest.golden) dropWeaponAt(nearest.x, nearest.y);
+              spawnDeathParticles(nearest.x, nearest.y, nearest.color);
+              onKill(nearest);
+              monsters.splice(monsters.indexOf(nearest), 1);
+            }
+          }
+        }
+      }
+    }
+
+    function drawCompanion(c) {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      const bob = Math.sin(c.bobAngle) * 3;
+      ctx.translate(0, bob);
+      const flash = Math.max(0, c.hitFlash || 0);
+      const col  = flash > 0 ? '#fff' : c.color;
+      const acc  = flash > 0 ? '#eee' : c.accentColor;
+
+      if (c.id === 'tails') {
+        // Tails: orange body, white tummy, two white tails, large blue eyes
+        // Tails — drawn behind
+        ctx.save();
+        ctx.translate(8, 6);
+        for(let ti=0;ti<2;ti++){
+          const tA = 0.3 + ti*0.55 + Math.sin(c.bobAngle*3+ti)*0.22;
+          ctx.beginPath();
+          ctx.moveTo(0,0);
+          ctx.bezierCurveTo(-10, 12, -18+ti*8, 22, -8+ti*5, 30);
+          ctx.bezierCurveTo(0+ti*4, 36, 10+ti*4, 28, 8+ti*3, 18);
+          ctx.bezierCurveTo(6+ti*3, 10, 4, 4, 0, 0);
+          ctx.fillStyle = col; ctx.fill();
+          // White tip
+          ctx.beginPath(); ctx.arc(-8+ti*5, 30, 6, 0, Math.PI*2);
+          ctx.fillStyle = acc; ctx.fill();
+        }
+        ctx.restore();
+        // Body
+        ctx.beginPath(); ctx.ellipse(0, 2, 13, 15, 0, 0, Math.PI*2);
+        ctx.fillStyle = col; ctx.fill();
+        // Tummy white
+        ctx.beginPath(); ctx.ellipse(0, 6, 7, 9, 0, 0, Math.PI*2);
+        ctx.fillStyle = acc; ctx.fill();
+        // Head
+        ctx.beginPath(); ctx.arc(0, -14, 13, 0, Math.PI*2);
+        ctx.fillStyle = col; ctx.fill();
+        // Ears
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.moveTo(-8,-24); ctx.lineTo(-14,-34); ctx.lineTo(-2,-22); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo( 8,-24); ctx.lineTo( 14,-34); ctx.lineTo( 2,-22); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#ffcccc';
+        ctx.beginPath(); ctx.moveTo(-8,-25); ctx.lineTo(-12,-32); ctx.lineTo(-3,-23); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo( 8,-25); ctx.lineTo( 12,-32); ctx.lineTo( 3,-23); ctx.closePath(); ctx.fill();
+        // Eyes — large blue
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-5, -14, 5.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 5, -14, 5.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = c.eyeColor;
+        ctx.beginPath(); ctx.arc(-5, -14, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 5, -14, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(-5, -13.5, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 5, -13.5, 1.5, 0, Math.PI*2); ctx.fill();
+        // Nose
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.ellipse(0, -9, 2.5, 1.5, 0, 0, Math.PI*2); ctx.fill();
+
+      } else if (c.id === 'knuckles') {
+        // Knuckles: red body, white V chest, dreadlocks, purple eyes, spiked fists
+        // Dreadlock dreads behind head
+        ctx.fillStyle = col;
+        [[-10,-28],[10,-28],[-16,-20],[16,-20]].forEach(([dx,dy])=>{
+          ctx.beginPath(); ctx.ellipse(dx, dy, 4, 9, dx < 0 ? -0.4 : 0.4, 0, Math.PI*2); ctx.fill();
+        });
+        // Body
+        ctx.beginPath(); ctx.ellipse(0, 2, 12, 14, 0, 0, Math.PI*2);
+        ctx.fillStyle = col; ctx.fill();
+        // Chest V
+        ctx.fillStyle = acc;
+        ctx.beginPath(); ctx.moveTo(-7,-2); ctx.lineTo(0,6); ctx.lineTo(7,-2); ctx.closePath(); ctx.fill();
+        // Head
+        ctx.beginPath(); ctx.arc(0, -13, 12, 0, Math.PI*2);
+        ctx.fillStyle = col; ctx.fill();
+        // Eyes — white + purple
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-4.5, -13, 4.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 4.5, -13, 4.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = c.eyeColor;
+        ctx.beginPath(); ctx.arc(-4.5, -13, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 4.5, -13, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(-4.5, -12.5, 1.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 4.5, -12.5, 1.2, 0, Math.PI*2); ctx.fill();
+        // Spiky nose ridge
+        ctx.fillStyle = acc;
+        ctx.beginPath(); ctx.moveTo(-5,-6); ctx.lineTo(0,-3); ctx.lineTo(5,-6); ctx.closePath(); ctx.fill();
+        // Fists — spiked
+        const fistSwing = Math.sin(c.bobAngle * 2) * 4;
+        [-1,1].forEach(side=>{
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.arc(side*16, 4+fistSwing*side, 7, 0, Math.PI*2); ctx.fill();
+          // 3 spikes on fist
+          for(let sp=0;sp<3;sp++){
+            const sa = (sp/3)*Math.PI*2 - Math.PI*0.3;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.moveTo(side*16+Math.cos(sa)*5, 4+fistSwing*side+Math.sin(sa)*5);
+            ctx.lineTo(side*16+Math.cos(sa+0.2)*9, 4+fistSwing*side+Math.sin(sa+0.2)*9);
+            ctx.lineTo(side*16+Math.cos(sa-0.2)*9, 4+fistSwing*side+Math.sin(sa-0.2)*9);
+            ctx.closePath(); ctx.fill();
+          }
+        });
+
+      } else if (c.id === 'mario') {
+        // Mario: red cap + shirt, blue overalls, brown mustache, white gloves
+        // Body — blue overalls
+        ctx.beginPath(); ctx.ellipse(0, 4, 11, 13, 0, 0, Math.PI*2);
+        ctx.fillStyle = '#2244cc'; ctx.fill();
+        // Shirt — red
+        ctx.beginPath(); ctx.ellipse(0, -2, 9, 8, 0, 0, Math.PI*2);
+        ctx.fillStyle = col; ctx.fill();
+        // Overall straps
+        ctx.strokeStyle = '#2244cc'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-4,-10); ctx.lineTo(-6, 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( 4,-10); ctx.lineTo( 6, 2); ctx.stroke();
+        // Gloves
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-15, 2+Math.sin(c.bobAngle*2)*3, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 15, 2-Math.sin(c.bobAngle*2)*3, 5, 0, Math.PI*2); ctx.fill();
+        // Arms — red
+        ctx.strokeStyle = col; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(-9, -2); ctx.lineTo(-15, 2+Math.sin(c.bobAngle*2)*3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( 9, -2); ctx.lineTo( 15, 2-Math.sin(c.bobAngle*2)*3); ctx.stroke();
+        // Head — skin tone
+        ctx.beginPath(); ctx.arc(0, -16, 11, 0, Math.PI*2);
+        ctx.fillStyle = '#f5c890'; ctx.fill();
+        // Red cap — half circle + brim
+        ctx.beginPath(); ctx.arc(0, -18, 12, -Math.PI, 0);
+        ctx.fillStyle = col; ctx.fill();
+        ctx.beginPath(); ctx.roundRect(-14, -19, 28, 5, 2);
+        ctx.fillStyle = col; ctx.fill();
+        // Cap M badge
+        ctx.font = 'bold 7px monospace'; ctx.fillStyle = '#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('M', 0, -21);
+        // Eyes
+        ctx.fillStyle = c.eyeColor;
+        ctx.beginPath(); ctx.arc(-4, -16, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 4, -16, 2.5, 0, Math.PI*2); ctx.fill();
+        // Mustache
+        ctx.fillStyle = '#5a3010';
+        ctx.beginPath(); ctx.ellipse(-4, -11, 5, 2.5, -0.3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( 4, -11, 5, 2.5,  0.3, 0, Math.PI*2); ctx.fill();
+        // Shoes — brown
+        ctx.fillStyle = '#5a3010';
+        ctx.beginPath(); ctx.roundRect(-10, 15, 9, 5, 2); ctx.fill();
+        ctx.beginPath(); ctx.roundRect( 1, 15, 9, 5, 2); ctx.fill();
+
+      } else if (c.id === 'luigi') {
+        // Luigi: green cap + shirt, blue overalls, brown mustache
+        // Body — blue overalls
+        ctx.beginPath(); ctx.ellipse(0, 5, 10, 14, 0, 0, Math.PI*2);
+        ctx.fillStyle = '#2244cc'; ctx.fill();
+        // Shirt — green (taller than Mario)
+        ctx.beginPath(); ctx.ellipse(0, -2, 9, 9, 0, 0, Math.PI*2);
+        ctx.fillStyle = col; ctx.fill();
+        // Overall straps
+        ctx.strokeStyle = '#2244cc'; ctx.lineWidth = 4; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(-4,-12); ctx.lineTo(-6, 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( 4,-12); ctx.lineTo( 6, 2); ctx.stroke();
+        // Gloves
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(-14, 2+Math.sin(c.bobAngle*2)*3, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 14, 2-Math.sin(c.bobAngle*2)*3, 5, 0, Math.PI*2); ctx.fill();
+        // Arms — green
+        ctx.strokeStyle = col; ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(-9, -2); ctx.lineTo(-14, 2+Math.sin(c.bobAngle*2)*3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( 9, -2); ctx.lineTo( 14, 2-Math.sin(c.bobAngle*2)*3); ctx.stroke();
+        // Head — slightly taller
+        ctx.beginPath(); ctx.ellipse(0, -17, 10, 12, 0, 0, Math.PI*2);
+        ctx.fillStyle = '#f5c890'; ctx.fill();
+        // Green cap
+        ctx.beginPath(); ctx.arc(0, -20, 11, -Math.PI, 0);
+        ctx.fillStyle = col; ctx.fill();
+        ctx.beginPath(); ctx.roundRect(-13, -21, 26, 5, 2);
+        ctx.fillStyle = col; ctx.fill();
+        // Cap L badge
+        ctx.font = 'bold 7px monospace'; ctx.fillStyle = '#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('L', 0, -23);
+        // Eyes
+        ctx.fillStyle = c.eyeColor;
+        ctx.beginPath(); ctx.arc(-3.5, -17, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( 3.5, -17, 2.5, 0, Math.PI*2); ctx.fill();
+        // Mustache (thinner than Mario's)
+        ctx.fillStyle = '#5a3010';
+        ctx.beginPath(); ctx.ellipse(-4, -12, 4.5, 2, -0.25, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( 4, -12, 4.5, 2,  0.25, 0, Math.PI*2); ctx.fill();
+        // Shoes
+        ctx.fillStyle = '#5a3010';
+        ctx.beginPath(); ctx.roundRect(-10, 17, 9, 5, 2); ctx.fill();
+        ctx.beginPath(); ctx.roundRect( 1, 17, 9, 5, 2); ctx.fill();
+      }
+
+      // HP bar above companion (small, only when damaged)
+      if (c.hp < c.maxHp) {
+        const bw = 28, bh = 4, bx = -bw/2, by = -36;
+        ctx.fillStyle = '#330000'; ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,2); ctx.fill();
+        ctx.fillStyle = '#44ff44'; ctx.beginPath(); ctx.roundRect(bx,by,bw*(c.hp/c.maxHp),bh,2); ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    function drawCompanions() {
+      for (const c of companions) drawCompanion(c);
     }
 
     // =====================================================================
@@ -2780,6 +3069,12 @@
       if (activeTheme === 'minecraft') {
         return ['zombie','zombie','skeleton','creeper','spider_mc','enderman','wither'][t];
       }
+      if (activeTheme === 'mario') {
+        return ['goomba','goomba','koopa','koopa','piranha','piranha','bowser_shape'][t];
+      }
+      if (activeTheme === 'forest') {
+        return ['forest_sprite','forest_sprite','dark_wolf','dark_wolf','raking_frog','owl_boss','deer'][t];
+      }
       return ['blob','blob','skull','spider','phantom','demon','abomination'][t];
     }
 
@@ -2837,6 +3132,14 @@
         const names = ['ZOMBIE KING','SKELETON LORD','CREEPER PRIME','SPIDER QUEEN','ENDERMAN KING','WITHER','WITHER'];
         return names[Math.min(wave.number - 1, names.length - 1)];
       }
+      if (activeTheme === 'mario') {
+        const names = ['GOOMBA KING','KOOPA KING','KOOPA REX','PIRANHA QUEEN','KING BOWSER','BOWSER JR','GIGA BOWSER'];
+        return names[Math.min(wave.number - 1, names.length - 1)];
+      }
+      if (activeTheme === 'forest') {
+        const names = ['FOREST SPRITE','DARK WOLF','RAKING FROG','GREAT OWL','GIANT DEER','ANCIENT OWL','ELDER DEER'];
+        return names[Math.min(wave.number - 1, names.length - 1)];
+      }
       const names = ['BLOB BOSS','SKULL BOSS','SPIDER BOSS','PHANTOM BOSS','DEMON BOSS','ABOMINATION'];
       return names[Math.min(wave.number - 1, names.length - 1)];
     }
@@ -2848,7 +3151,21 @@
         spawnMonster();
       }
 
-      for (const m of monsters) {
+      for (let i = monsters.length - 1; i >= 0; i--) {
+        const m = monsters[i];
+        // Deer falling death animation
+        if (m.falling) {
+          m.fallAngle = Math.min((m.fallAngle || 0) + 0.04 * dt, Math.PI / 2);
+          m.fallTimer = (m.fallTimer || 90) - dt;
+          if (m.fallTimer <= 0) {
+            if (m.golden) dropWeaponAt(m.x, m.y);
+            spawnDeathParticles(m.x, m.y, m.color);
+            spawnDeathParticles(m.x, m.y, '#88cc44');
+            onKill(m);
+            monsters.splice(i, 1);
+          }
+          continue; // don't move while falling
+        }
         const dx = egg.x - m.x, dy = egg.y - m.y;
         const dist = Math.sqrt(dx*dx + dy*dy) || 1;
         m.x += (dx / dist) * m.speed * dt;
@@ -3471,6 +3788,531 @@
         ctx.beginPath(); ctx.moveTo(-m.r*0.15,m.r*0.5); ctx.lineTo(-m.r*1.1,m.r*0.1+lw*m.r*0.4); ctx.stroke();
         ctx.beginPath(); ctx.moveTo( m.r*0.15,m.r*0.5); ctx.lineTo( m.r*1.1,m.r*0.1+rw*m.r*0.4); ctx.stroke();
 
+      } else if (shape === 'goomba') {
+        // Mario goomba — brown mushroom cap, tan body, angry eyebrows, tiny feet
+        // Cap
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.55, m.r*0.95, m.r*0.7, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#d4a0a0' : '#7a3010'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#bbb' : '#3a1000'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Cap highlight stripe
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.72, m.r*0.38, m.r*0.22, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? 'rgba(255,255,255,0.3)' : 'rgba(180,90,20,0.45)'; ctx.fill();
+        // Body
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.25, m.r*0.68, m.r*0.58, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#e8c090' : '#c87840'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#bbb' : '#5a2a00'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Feet — two dark ovals
+        ctx.fillStyle = f>0 ? '#999' : '#3a1000';
+        ctx.beginPath(); ctx.ellipse(-m.r*0.35, m.r*0.82, m.r*0.32, m.r*0.18, -0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.35, m.r*0.82, m.r*0.32, m.r*0.18,  0.2, 0, Math.PI*2); ctx.fill();
+        // Eyes — white with black iris
+        ctx.fillStyle = f>0 ? '#ccc' : '#fff';
+        ctx.beginPath(); ctx.arc(-m.r*0.27, m.r*0.05, m.r*0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.27, m.r*0.05, m.r*0.2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#111';
+        ctx.beginPath(); ctx.arc(-m.r*0.29, m.r*0.07, m.r*0.1, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.29, m.r*0.07, m.r*0.1, 0, Math.PI*2); ctx.fill();
+        // Angry eyebrows
+        ctx.strokeStyle = f>0 ? '#888' : '#3a1000'; ctx.lineWidth = m.r*0.1; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.45, -m.r*0.12); ctx.lineTo(-m.r*0.1, -m.r*0.06); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.45, -m.r*0.12); ctx.lineTo( m.r*0.1, -m.r*0.06); ctx.stroke();
+        // Frown
+        ctx.beginPath(); ctx.arc(0, m.r*0.38, m.r*0.22, 0.2, Math.PI-0.2);
+        ctx.strokeStyle = f>0 ? '#888' : '#5a2a00'; ctx.lineWidth = m.r*0.08; ctx.stroke();
+
+      } else if (shape === 'koopa') {
+        // Mario koopa — green shell oval, yellow-green head, goggles, small feet
+        // Shell body
+        const shellGrad = ctx.createRadialGradient(-m.r*0.2,-m.r*0.1,2,0,0,m.r*1.0);
+        shellGrad.addColorStop(0, f>0 ? '#aaffaa' : '#4ab828');
+        shellGrad.addColorStop(1, f>0 ? '#88cc88' : '#1a5a00');
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.1, m.r*0.75, m.r*0.85, 0, 0, Math.PI*2);
+        ctx.fillStyle = shellGrad; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#0a3000'; ctx.lineWidth = 2; ctx.stroke();
+        // Shell pattern lines
+        ctx.strokeStyle = f>0 ? 'rgba(200,255,200,0.4)' : 'rgba(0,80,0,0.5)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.1, m.r*0.4, m.r*0.5, 0, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -m.r*0.75); ctx.lineTo(0, m.r*0.95); ctx.stroke();
+        // Neck
+        ctx.fillStyle = f>0 ? '#e8d88a' : '#e8c840';
+        ctx.beginPath(); ctx.rect(-m.r*0.18, -m.r*1.0, m.r*0.36, m.r*0.35); ctx.fill();
+        // Head — yellow-green rounded
+        ctx.beginPath(); ctx.ellipse(0, -m.r*1.18, m.r*0.52, m.r*0.44, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#e8d88a' : '#e8c840'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#bbb' : '#8a6800'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Goggle whites
+        ctx.fillStyle = f>0 ? '#eee' : '#fff';
+        ctx.beginPath(); ctx.arc(-m.r*0.2, -m.r*1.22, m.r*0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.2, -m.r*1.22, m.r*0.2, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#444'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(-m.r*0.2, -m.r*1.22, m.r*0.2, 0, Math.PI*2); ctx.stroke();
+        ctx.beginPath(); ctx.arc( m.r*0.2, -m.r*1.22, m.r*0.2, 0, Math.PI*2); ctx.stroke();
+        // Pupils
+        ctx.fillStyle = f>0 ? '#666' : '#111';
+        ctx.beginPath(); ctx.arc(-m.r*0.2, -m.r*1.22, m.r*0.09, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.2, -m.r*1.22, m.r*0.09, 0, Math.PI*2); ctx.fill();
+        // Feet
+        ctx.fillStyle = f>0 ? '#e8d88a' : '#e8c840';
+        ctx.beginPath(); ctx.ellipse(-m.r*0.38, m.r*0.92, m.r*0.28, m.r*0.16, -0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.38, m.r*0.92, m.r*0.28, m.r*0.16,  0.2, 0, Math.PI*2); ctx.fill();
+
+      } else if (shape === 'piranha') {
+        // Mario piranha plant — green stem, red head, white spots, jagged teeth, tongue
+        // Stem
+        ctx.strokeStyle = f>0 ? '#88dd88' : '#28820a'; ctx.lineWidth = m.r*0.28; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(0, m.r*0.95); ctx.bezierCurveTo(-m.r*0.3, m.r*0.5, m.r*0.25, 0, 0, -m.r*0.2); ctx.stroke();
+        // Pipe top rim
+        ctx.fillStyle = f>0 ? '#88dd88' : '#28820a';
+        ctx.beginPath(); ctx.roundRect(-m.r*0.7, m.r*0.6, m.r*1.4, m.r*0.45, 4); ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#0a4000'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Head ball — red circle
+        ctx.beginPath(); ctx.arc(0, -m.r*0.38, m.r*0.75, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#ff9090' : '#cc1111'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#bbb' : '#880000'; ctx.lineWidth = 2; ctx.stroke();
+        // White spots
+        ctx.fillStyle = f>0 ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.85)';
+        [[-0.38,-0.62],[0.3,-0.7],[-0.12,-0.12],[0.44,-0.25]].forEach(([sx,sy])=>{
+          ctx.beginPath(); ctx.arc(sx*m.r, sy*m.r, m.r*0.11, 0, Math.PI*2); ctx.fill();
+        });
+        // Mouth — open gaping
+        const mouthOpen = 0.55 + 0.2*Math.sin(m.bobAngle*2);
+        ctx.beginPath();
+        ctx.arc(0, -m.r*0.38, m.r*0.72, -0.1, Math.PI+0.1);
+        ctx.fillStyle = f>0 ? '#dd3333' : '#880000'; ctx.fill();
+        // Tongue
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.05, m.r*0.24, m.r*0.14, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#ffaaaa' : '#ff3366'; ctx.fill();
+        // Upper teeth
+        ctx.fillStyle = f>0 ? '#eee' : '#fff';
+        for(let t=0;t<5;t++){
+          const tx = -m.r*0.6 + t*m.r*0.3;
+          ctx.beginPath(); ctx.moveTo(tx, -m.r*0.38+m.r*mouthOpen*0.18);
+          ctx.lineTo(tx+m.r*0.1, -m.r*0.38-m.r*0.22);
+          ctx.lineTo(tx+m.r*0.2, -m.r*0.38+m.r*mouthOpen*0.18);
+          ctx.closePath(); ctx.fill();
+        }
+
+      } else if (shape === 'bowser_shape') {
+        // Mario Bowser boss — huge spiked shell, horns, orange eyebrows, fire glow at low HP
+        const hpPct = m.hp / m.maxHp;
+        const rage = Math.max(0, 1 - hpPct * 2); // ramps up below 50% HP
+        const pulse = 0.7 + 0.3*Math.sin(m.bobAngle*2.5);
+        // Fire aura at low HP
+        if (rage > 0) {
+          const fireAura = ctx.createRadialGradient(0, m.r*0.2, m.r*0.2, 0, m.r*0.2, m.r*2.2);
+          fireAura.addColorStop(0, `rgba(255,120,0,${rage*0.3*pulse})`);
+          fireAura.addColorStop(1, 'transparent');
+          ctx.beginPath(); ctx.arc(0, m.r*0.2, m.r*2.2, 0, Math.PI*2); ctx.fillStyle = fireAura; ctx.fill();
+        }
+        // Shell — dark spiked oval on back
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.15, m.r*1.0, m.r*1.15, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#88cc88' : '#3a7818'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#1a4800'; ctx.lineWidth = 2.5; ctx.stroke();
+        // Shell ring
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.15, m.r*0.55, m.r*0.62, 0, 0, Math.PI*2);
+        ctx.strokeStyle = f>0 ? 'rgba(200,255,200,0.4)' : 'rgba(0,100,0,0.5)'; ctx.lineWidth = 3; ctx.stroke();
+        // Shell spikes (7 around perimeter)
+        ctx.fillStyle = f>0 ? '#ddd' : '#d4a020';
+        for(let s=0;s<7;s++){
+          const sa = (s/7)*Math.PI*2 - Math.PI*0.5;
+          const sx = Math.cos(sa)*m.r*1.0, sy = m.r*0.15 + Math.sin(sa)*m.r*1.15;
+          ctx.save(); ctx.translate(sx, sy); ctx.rotate(sa);
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-m.r*0.18, m.r*0.28); ctx.lineTo(m.r*0.18, m.r*0.28); ctx.closePath();
+          ctx.fill(); ctx.restore();
+        }
+        // Body — tan/orange torso
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.08, m.r*0.72, m.r*0.65, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#e8d090' : '#c87020'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#7a3800'; ctx.lineWidth = 2; ctx.stroke();
+        // Belly scales — row of 3
+        ctx.fillStyle = f>0 ? 'rgba(255,255,200,0.4)' : 'rgba(240,200,80,0.5)';
+        [-m.r*0.3, 0, m.r*0.3].forEach(bx => {
+          ctx.beginPath(); ctx.ellipse(bx, m.r*0.12, m.r*0.2, m.r*0.14, 0, 0, Math.PI*2); ctx.fill();
+        });
+        // Arms — clawed
+        ctx.strokeStyle = f>0 ? '#c8b870' : '#c87020'; ctx.lineWidth = m.r*0.3; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.72, -m.r*0.08); ctx.lineTo(-m.r*1.4, m.r*0.4 + lw*m.r*0.25); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.72, -m.r*0.08); ctx.lineTo( m.r*1.4, m.r*0.4 + rw*m.r*0.25); ctx.stroke();
+        // Claws (3 per hand)
+        ctx.strokeStyle = f>0 ? '#bbb' : '#fff'; ctx.lineWidth = m.r*0.1;
+        [-3,-1,1].forEach(ci=>{
+          ctx.beginPath(); ctx.moveTo(-m.r*1.4,m.r*0.4+lw*m.r*0.25); ctx.lineTo(-m.r*1.4+ci*m.r*0.12,m.r*0.4+lw*m.r*0.25+m.r*0.28); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( m.r*1.4,m.r*0.4+rw*m.r*0.25); ctx.lineTo( m.r*1.4+ci*m.r*0.12,m.r*0.4+rw*m.r*0.25+m.r*0.28); ctx.stroke();
+        });
+        // Neck
+        ctx.fillStyle = f>0 ? '#e8d090' : '#c87020';
+        ctx.beginPath(); ctx.rect(-m.r*0.24, -m.r*0.68, m.r*0.48, m.r*0.3); ctx.fill();
+        // Head — blocky, wide
+        ctx.beginPath(); ctx.ellipse(0, -m.r*1.08, m.r*0.72, m.r*0.6, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#e8d090' : '#c87020'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#7a3800'; ctx.lineWidth = 2; ctx.stroke();
+        // Horns
+        ctx.fillStyle = f>0 ? '#ddd' : '#d4a020';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.55, -m.r*1.5); ctx.lineTo(-m.r*0.8, -m.r*2.1); ctx.lineTo(-m.r*0.28, -m.r*1.6); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo( m.r*0.55, -m.r*1.5); ctx.lineTo( m.r*0.8, -m.r*2.1); ctx.lineTo( m.r*0.28, -m.r*1.6); ctx.closePath(); ctx.fill();
+        // Orange bushy eyebrows
+        ctx.fillStyle = f>0 ? '#e0a060' : '#ff6a00';
+        ctx.beginPath(); ctx.ellipse(-m.r*0.32, -m.r*1.22, m.r*0.28, m.r*0.12, -0.4, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.32, -m.r*1.22, m.r*0.28, m.r*0.12,  0.4, 0, Math.PI*2); ctx.fill();
+        // Eyes — red, glowing when enraged
+        const eyeCol = rage > 0.3 ? `rgba(255,${Math.floor(80*(1-rage))},0,${0.8+rage*0.2*pulse})` : (f>0 ? '#bb3300' : '#cc1100');
+        ctx.fillStyle = eyeCol;
+        ctx.beginPath(); ctx.arc(-m.r*0.3, -m.r*1.08, m.r*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.3, -m.r*1.08, m.r*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(-m.r*0.3, -m.r*1.08, m.r*0.06, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.3, -m.r*1.08, m.r*0.06, 0, Math.PI*2); ctx.fill();
+        // Snout
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.85, m.r*0.38, m.r*0.24, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#ddc080' : '#e8b050'; ctx.fill();
+        // Nostrils
+        ctx.fillStyle = f>0 ? '#aaa' : '#7a3800';
+        ctx.beginPath(); ctx.arc(-m.r*0.15, -m.r*0.88, m.r*0.07, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.15, -m.r*0.88, m.r*0.07, 0, Math.PI*2); ctx.fill();
+        // Fire breath at low HP
+        if (rage > 0.2 && f <= 0) {
+          const fireX = 0, fireY = -m.r*0.72;
+          for(let fb=0;fb<4;fb++){
+            const fa = -Math.PI*0.5 + (fb-1.5)*0.28 + Math.sin(m.bobAngle*3+fb)*0.15;
+            const fl = m.r*(0.5+fb*0.3)*rage*pulse;
+            const fireBlob = ctx.createRadialGradient(fireX+Math.cos(fa)*fl*0.3, fireY+Math.sin(fa)*fl*0.3, 0, fireX+Math.cos(fa)*fl, fireY+Math.sin(fa)*fl, m.r*0.3);
+            fireBlob.addColorStop(0, `rgba(255,240,80,${rage*0.7})`);
+            fireBlob.addColorStop(0.5, `rgba(255,120,0,${rage*0.5})`);
+            fireBlob.addColorStop(1, 'transparent');
+            ctx.beginPath(); ctx.arc(fireX+Math.cos(fa)*fl, fireY+Math.sin(fa)*fl, m.r*0.3, 0, Math.PI*2);
+            ctx.fillStyle = fireBlob; ctx.fill();
+          }
+        }
+        // Legs — stocky
+        ctx.strokeStyle = f>0 ? '#c8b870' : '#c87020'; ctx.lineWidth = m.r*0.35; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.38, m.r*0.75); ctx.lineTo(-m.r*0.5, m.r*1.45+lw*m.r*0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.38, m.r*0.75); ctx.lineTo( m.r*0.5, m.r*1.45+rw*m.r*0.1); ctx.stroke();
+
+      } else if (shape === 'forest_sprite') {
+        // Forest sprite — small round dark body, glowing yellow-green eyes, leaf wings
+        const glow = 0.5 + 0.5*Math.sin(m.bobAngle*3);
+        // Wing glow aura
+        const wGA = ctx.createRadialGradient(0,0,m.r*0.2,0,0,m.r*2.0);
+        wGA.addColorStop(0, `rgba(80,200,40,${f>0?0.05:glow*0.14})`); wGA.addColorStop(1,'transparent');
+        ctx.beginPath(); ctx.arc(0,0,m.r*2,0,Math.PI*2); ctx.fillStyle=wGA; ctx.fill();
+        // Leaf wings (2 per side)
+        const wingFlap = Math.sin(m.bobAngle*5)*0.35;
+        [[1,-1],[1,1],[-1,-1],[-1,1]].forEach(([sx,sy],wi)=>{
+          ctx.save();
+          ctx.translate(sx*m.r*0.5, -m.r*0.1);
+          ctx.rotate(sy*(wingFlap + (wi<2?0.4:0.7))*sx);
+          ctx.beginPath();
+          ctx.ellipse(sx*m.r*0.55, -m.r*0.12, m.r*0.62, m.r*0.28, sy*0.4*sx, 0, Math.PI*2);
+          ctx.fillStyle = f>0 ? 'rgba(160,200,120,0.6)' : `rgba(40,140,20,${0.55+glow*0.25})`;
+          ctx.fill();
+          ctx.strokeStyle = f>0 ? 'rgba(180,220,140,0.4)' : 'rgba(80,200,20,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+          ctx.restore();
+        });
+        // Dark round body
+        const bodyGrad = ctx.createRadialGradient(-m.r*0.2,-m.r*0.2,2,0,0,m.r);
+        bodyGrad.addColorStop(0, f>0?'#556655':'#1a2a14'); bodyGrad.addColorStop(1, f>0?'#334433':'#0a140a');
+        ctx.beginPath(); ctx.arc(0,0,m.r,0,Math.PI*2); ctx.fillStyle=bodyGrad; ctx.fill();
+        ctx.strokeStyle = f>0?'rgba(100,140,80,0.4)':'rgba(80,160,40,0.3)'; ctx.lineWidth=1.5; ctx.stroke();
+        // Glowing yellow-green eyes
+        const eyeA = f>0 ? 0.6 : 0.7 + glow*0.3;
+        ctx.fillStyle = `rgba(180,255,50,${eyeA})`;
+        ctx.beginPath(); ctx.ellipse(-m.r*0.25, -m.r*0.12, m.r*0.18, m.r*0.14, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse( m.r*0.25, -m.r*0.12, m.r*0.18, m.r*0.14, 0, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(-m.r*0.25, -m.r*0.12, m.r*0.07, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.25, -m.r*0.12, m.r*0.07, 0, Math.PI*2); ctx.fill();
+        // Small mouth
+        ctx.beginPath(); ctx.arc(0, m.r*0.18, m.r*0.15, 0.1, Math.PI-0.1);
+        ctx.strokeStyle = `rgba(160,255,60,${eyeA*0.7})`; ctx.lineWidth=m.r*0.07; ctx.stroke();
+
+      } else if (shape === 'dark_wolf') {
+        // Dark wolf — low crouching dark body, pointed ears, glowing yellow eyes, fangs, bushy tail
+        const wPulse = 0.5+0.5*Math.sin(m.bobAngle*2.2);
+        // Shadow aura
+        if(f<=0){
+          const wAura=ctx.createRadialGradient(0,m.r*0.1,m.r*0.3,0,m.r*0.1,m.r*1.8);
+          wAura.addColorStop(0,'rgba(10,5,0,0.25)'); wAura.addColorStop(1,'transparent');
+          ctx.beginPath(); ctx.arc(0,m.r*0.1,m.r*1.8,0,Math.PI*2); ctx.fillStyle=wAura; ctx.fill();
+        }
+        // Body — crouched wide oval
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.18, m.r*0.88, m.r*0.58, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#888' : '#1a1410'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#2a1e14'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Bushy tail — swept to the right
+        ctx.beginPath();
+        ctx.moveTo(m.r*0.78, m.r*0.22);
+        ctx.bezierCurveTo(m.r*1.55, -m.r*0.2, m.r*1.7, -m.r*0.7, m.r*1.3, -m.r*1.0);
+        ctx.bezierCurveTo(m.r*1.1, -m.r*1.2, m.r*0.9, -m.r*0.8, m.r*1.0, -m.r*0.4);
+        ctx.bezierCurveTo(m.r*1.1, 0, m.r*0.88, m.r*0.18, m.r*0.78, m.r*0.22);
+        ctx.fillStyle = f>0 ? '#aaa' : '#2a2018'; ctx.fill();
+        // Legs (4 stubby)
+        ctx.fillStyle = f>0 ? '#777' : '#1a1410';
+        [[-0.55,0.2],[- 0.2,0.22],[0.2,0.22],[0.55,0.2]].forEach(([lx,ly],li)=>{
+          const legSway = Math.sin(m.bobAngle*2+li*1.2)*0.12;
+          ctx.beginPath(); ctx.roundRect(lx*m.r-m.r*0.14, ly*m.r, m.r*0.28, m.r*0.55+legSway*m.r, 3); ctx.fill();
+        });
+        // Head — slightly lifted snout
+        ctx.beginPath(); ctx.ellipse(-m.r*0.55, -m.r*0.35, m.r*0.55, m.r*0.42, -0.25, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#888' : '#1a1410'; ctx.fill(); ctx.strokeStyle = f>0?'#aaa':'#2a1e14'; ctx.lineWidth=1.5; ctx.stroke();
+        // Pointed ears (2)
+        ctx.fillStyle = f>0 ? '#999' : '#1e1814';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.7,-m.r*0.6); ctx.lineTo(-m.r*1.0,-m.r*1.22); ctx.lineTo(-m.r*0.45,-m.r*0.7); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-m.r*0.32,-m.r*0.62); ctx.lineTo(-m.r*0.5,-m.r*1.1); ctx.lineTo(-m.r*0.1,-m.r*0.68); ctx.closePath(); ctx.fill();
+        // Inner ear
+        ctx.fillStyle = f>0 ? '#cca0a0' : '#3a1010';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.7,-m.r*0.68); ctx.lineTo(-m.r*0.95,-m.r*1.12); ctx.lineTo(-m.r*0.5,-m.r*0.74); ctx.closePath(); ctx.fill();
+        // Snout
+        ctx.beginPath(); ctx.ellipse(-m.r*0.95, -m.r*0.18, m.r*0.3, m.r*0.2, -0.3, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#aaa' : '#2a2018'; ctx.fill();
+        // Nose
+        ctx.fillStyle = f>0 ? '#888' : '#111';
+        ctx.beginPath(); ctx.ellipse(-m.r*1.18, -m.r*0.22, m.r*0.12, m.r*0.09, -0.3, 0, Math.PI*2); ctx.fill();
+        // Glowing yellow eyes
+        const wEA = f>0 ? 0.7 : 0.65+wPulse*0.35;
+        ctx.fillStyle = `rgba(255,200,20,${wEA})`;
+        ctx.beginPath(); ctx.ellipse(-m.r*0.68,-m.r*0.44, m.r*0.14, m.r*0.11, -0.2, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(-m.r*0.42,-m.r*0.42, m.r*0.14, m.r*0.11, -0.2, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(-m.r*0.68,-m.r*0.44, m.r*0.06, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(-m.r*0.42,-m.r*0.42, m.r*0.06, 0, Math.PI*2); ctx.fill();
+        // Fangs
+        ctx.fillStyle = f>0 ? '#ddd' : '#e8e0d0';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.88, -m.r*0.1); ctx.lineTo(-m.r*0.98, m.r*0.1); ctx.lineTo(-m.r*0.8, -m.r*0.05); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-m.r*1.0, -m.r*0.1); ctx.lineTo(-m.r*1.12, m.r*0.1); ctx.lineTo(-m.r*0.92, -m.r*0.06); ctx.closePath(); ctx.fill();
+        // Back fur ridges
+        ctx.strokeStyle = f>0 ? 'rgba(160,160,140,0.4)' : 'rgba(60,50,40,0.6)'; ctx.lineWidth=m.r*0.07; ctx.lineCap='round';
+        [0.1,0.35,0.6].forEach(fx=>{
+          ctx.beginPath(); ctx.moveTo(fx*m.r-m.r*0.4, -m.r*0.25); ctx.lineTo(fx*m.r-m.r*0.38, -m.r*0.6); ctx.stroke();
+        });
+
+      } else if (shape === 'raking_frog') {
+        // Raking frog boss — fat green, wide toothed mouth, two rakes, bulging eyes, yellow belly
+        const hpPct = m.hp / m.maxHp;
+        const frogPulse = 0.7+0.3*Math.sin(m.bobAngle*2.8);
+        // Glow at low HP
+        if(hpPct < 0.5 && f<=0){
+          const fGlow=ctx.createRadialGradient(0,0,m.r*0.3,0,0,m.r*2.2);
+          fGlow.addColorStop(0,`rgba(80,200,20,${(0.5-hpPct)*0.4*frogPulse})`); fGlow.addColorStop(1,'transparent');
+          ctx.beginPath(); ctx.arc(0,0,m.r*2.2,0,Math.PI*2); ctx.fillStyle=fGlow; ctx.fill();
+        }
+        // Yellow belly
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.22, m.r*0.65, m.r*0.62, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#e8e880' : '#d4c840'; ctx.fill();
+        // Body — fat oval
+        ctx.beginPath(); ctx.ellipse(0, 0, m.r, m.r*0.88, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#88cc88' : '#2a8818'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#145010'; ctx.lineWidth = 2; ctx.stroke();
+        // Back bumps (warts)
+        ctx.fillStyle = f>0 ? '#99cc99' : '#348830';
+        [[-0.55,-0.3],[0.55,-0.3],[-0.3,0.55],[0.3,0.55],[0,-0.7]].forEach(([wx,wy])=>{
+          ctx.beginPath(); ctx.arc(wx*m.r, wy*m.r, m.r*0.12, 0, Math.PI*2); ctx.fill();
+        });
+        // Head — separate round head on top
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.72, m.r*0.78, m.r*0.6, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#88cc88' : '#2a8818'; ctx.fill();
+        ctx.strokeStyle = f>0 ? '#aaa' : '#145010'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Bulging eyes on stalks
+        [[-0.42,-1.22],[0.42,-1.22]].forEach(([ex,ey])=>{
+          // Stalk
+          ctx.strokeStyle = f>0 ? '#88cc88' : '#2a8818'; ctx.lineWidth = m.r*0.15;
+          ctx.beginPath(); ctx.moveTo(ex*m.r*0.6, -m.r*0.95); ctx.lineTo(ex*m.r, ey*m.r); ctx.stroke();
+          // Eyeball
+          ctx.beginPath(); ctx.arc(ex*m.r, ey*m.r, m.r*0.3, 0, Math.PI*2);
+          ctx.fillStyle = f>0 ? '#ddffdd' : '#e8ffe0'; ctx.fill();
+          ctx.strokeStyle = f>0 ? '#aaa' : '#145010'; ctx.lineWidth=1.5; ctx.stroke();
+          // Iris
+          ctx.beginPath(); ctx.arc(ex*m.r, ey*m.r, m.r*0.18, 0, Math.PI*2);
+          ctx.fillStyle = f>0?'#aaaaaa':`rgba(200,140,0,${frogPulse})`; ctx.fill();
+          ctx.beginPath(); ctx.arc(ex*m.r, ey*m.r, m.r*0.09, 0, Math.PI*2);
+          ctx.fillStyle = '#000'; ctx.fill();
+        });
+        // Wide mouth — huge gaping
+        ctx.beginPath();
+        ctx.moveTo(-m.r*0.82, -m.r*0.45);
+        ctx.quadraticCurveTo(0, -m.r*0.08, m.r*0.82, -m.r*0.45);
+        ctx.quadraticCurveTo(m.r*0.9, -m.r*0.62, m.r*0.82, -m.r*0.75);
+        ctx.quadraticCurveTo(0, -m.r*0.5, -m.r*0.82, -m.r*0.75);
+        ctx.closePath(); ctx.fillStyle = f>0 ? '#dd4444' : '#880000'; ctx.fill();
+        // Teeth on upper jaw
+        ctx.fillStyle = f>0 ? '#eee' : '#fff';
+        for(let t=0;t<6;t++){
+          const tx=-m.r*0.7+t*m.r*0.27;
+          ctx.beginPath(); ctx.moveTo(tx, -m.r*0.75); ctx.lineTo(tx+m.r*0.1, -m.r*0.52); ctx.lineTo(tx+m.r*0.2, -m.r*0.75); ctx.closePath(); ctx.fill();
+        }
+        // Rake arms — stick + tines
+        const rakeSwing = Math.sin(m.bobAngle*1.8)*0.5;
+        [[-1,1],[1,-1]].forEach(([side,flip],ri)=>{
+          ctx.save();
+          ctx.translate(side*m.r*0.85, m.r*0.05);
+          ctx.rotate(side*(-0.8+rakeSwing*flip));
+          // Stick
+          ctx.strokeStyle = f>0 ? '#c8a060' : '#8a5820'; ctx.lineWidth = m.r*0.13; ctx.lineCap='round';
+          ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0, m.r*1.4); ctx.stroke();
+          // Rake head (horizontal bar + 4 tines)
+          ctx.strokeStyle = f>0 ? '#999' : '#666'; ctx.lineWidth = m.r*0.1;
+          ctx.beginPath(); ctx.moveTo(-m.r*0.4, m.r*1.4); ctx.lineTo(m.r*0.4, m.r*1.4); ctx.stroke();
+          [-0.3,-0.1,0.1,0.3].forEach(tx=>{
+            ctx.beginPath(); ctx.moveTo(tx*m.r, m.r*1.4); ctx.lineTo(tx*m.r, m.r*1.7); ctx.stroke();
+          });
+          ctx.restore();
+        });
+        // Legs — two thick frog legs
+        ctx.fillStyle = f>0 ? '#88cc88' : '#2a8818';
+        [[-0.55,1],[0.55,1]].forEach(([lx,ly])=>{
+          const legBob = Math.sin(m.bobAngle*2)*0.08;
+          ctx.beginPath(); ctx.roundRect(lx*m.r-m.r*0.24, m.r*0.72, m.r*0.48, m.r*(0.58+legBob), 5); ctx.fill();
+          ctx.strokeStyle = f>0?'#aaa':'#145010'; ctx.lineWidth=1.2; ctx.stroke();
+          // Webbed foot
+          ctx.beginPath(); ctx.ellipse(lx*m.r, m.r*1.38, m.r*0.38, m.r*0.18, 0, 0, Math.PI*2);
+          ctx.fillStyle = f>0?'#88cc88':'#2a8818'; ctx.fill();
+        });
+
+      } else if (shape === 'owl_boss') {
+        // Owl boss — large round brown, huge yellow eyes, sharp beak, wide wings, feather crown, talons
+        const hpPct = m.hp / m.maxHp;
+        const owlPulse = 0.65+0.35*Math.sin(m.bobAngle*1.8);
+        // Night glow aura
+        if(f<=0){
+          const owlGlow=ctx.createRadialGradient(0,-m.r*0.2,m.r*0.3,0,-m.r*0.2,m.r*2.5);
+          owlGlow.addColorStop(0,`rgba(40,20,80,${owlPulse*0.22})`); owlGlow.addColorStop(1,'transparent');
+          ctx.beginPath(); ctx.arc(0,-m.r*0.2,m.r*2.5,0,Math.PI*2); ctx.fillStyle=owlGlow; ctx.fill();
+        }
+        // Wings — wide spread, animated flap
+        const wingFlap = Math.sin(m.bobAngle*2.2)*0.18;
+        [-1,1].forEach(side=>{
+          ctx.save();
+          ctx.translate(side*m.r*0.6, m.r*0.0);
+          ctx.rotate(side*(0.15+wingFlap));
+          // Wing — layered feathers
+          const wingW = m.r*1.55, wingH = m.r*0.72;
+          ctx.beginPath();
+          ctx.moveTo(0, -wingH*0.3);
+          ctx.bezierCurveTo(side*wingW*0.4, -wingH*0.6, side*wingW, -wingH*0.4, side*wingW, wingH*0.1);
+          ctx.bezierCurveTo(side*wingW, wingH*0.5, side*wingW*0.6, wingH*0.8, 0, wingH*0.5);
+          ctx.closePath();
+          ctx.fillStyle = f>0?'#c0a060':'#6a4010'; ctx.fill();
+          ctx.strokeStyle = f>0?'#bbb':'#3a2000'; ctx.lineWidth=1.5; ctx.stroke();
+          // Feather lines
+          ctx.strokeStyle = f>0?'rgba(200,180,140,0.4)':'rgba(120,80,20,0.5)'; ctx.lineWidth=1.2;
+          for(let fw=0;fw<4;fw++){
+            const fp=(fw+1)*0.2;
+            ctx.beginPath();
+            ctx.moveTo(0, wingH*(fp-0.15));
+            ctx.lineTo(side*wingW*fp, wingH*(fp*0.8));
+            ctx.stroke();
+          }
+          ctx.restore();
+        });
+        // Body — large round
+        const bodyGrad = ctx.createRadialGradient(-m.r*0.2,-m.r*0.2,4,0,0,m.r*1.1);
+        bodyGrad.addColorStop(0, f>0?'#d4a860':'#8a5818'); bodyGrad.addColorStop(1, f>0?'#a07840':'#4a2808');
+        ctx.beginPath(); ctx.arc(0, m.r*0.15, m.r, 0, Math.PI*2); ctx.fillStyle=bodyGrad; ctx.fill();
+        ctx.strokeStyle = f>0?'#bbb':'#2a1400'; ctx.lineWidth=2; ctx.stroke();
+        // Chest lighter feathers
+        ctx.fillStyle = f>0 ? 'rgba(255,230,180,0.5)' : 'rgba(200,160,80,0.4)';
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.35, m.r*0.52, m.r*0.5, 0, 0, Math.PI*2); ctx.fill();
+        // Head — large round
+        ctx.beginPath(); ctx.arc(0, -m.r*0.72, m.r*0.8, 0, Math.PI*2);
+        ctx.fillStyle = f>0?'#c8a060':'#7a4e18'; ctx.fill(); ctx.strokeStyle=f>0?'#bbb':'#2a1400'; ctx.lineWidth=2; ctx.stroke();
+        // Feather crown (5 tufts)
+        ctx.fillStyle = f>0?'#d4a060':'#6a4010';
+        [-0.55,-0.25,0,0.25,0.55].forEach((fx,fi)=>{
+          const fh = fi===2 ? 0.68 : 0.5;
+          ctx.beginPath(); ctx.moveTo(fx*m.r, -m.r*1.38); ctx.lineTo((fx-0.1)*m.r, -m.r*(1.38+fh)); ctx.lineTo((fx+0.1)*m.r, -m.r*(1.38+fh*0.85)); ctx.lineTo((fx+0.2)*m.r, -m.r*1.38); ctx.closePath(); ctx.fill();
+        });
+        // Huge yellow eyes (facial disc)
+        ctx.fillStyle = f>0?'#e0e0e0':'#f0f0e8';
+        ctx.beginPath(); ctx.arc(-m.r*0.3, -m.r*0.72, m.r*0.38, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.3, -m.r*0.72, m.r*0.38, 0, Math.PI*2); ctx.fill();
+        const eyeYellow = f>0?'#ddcc00':`rgba(255,200,0,${0.8+owlPulse*0.2})`;
+        ctx.fillStyle = eyeYellow;
+        ctx.beginPath(); ctx.arc(-m.r*0.3, -m.r*0.72, m.r*0.28, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.3, -m.r*0.72, m.r*0.28, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(-m.r*0.3, -m.r*0.72, m.r*0.13, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.3, -m.r*0.72, m.r*0.13, 0, Math.PI*2); ctx.fill();
+        // Sharp beak
+        ctx.fillStyle = f>0?'#e0b040':'#d49010';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.14, -m.r*0.55); ctx.lineTo(0, -m.r*0.32); ctx.lineTo(m.r*0.14, -m.r*0.55); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-m.r*0.12, -m.r*0.52); ctx.lineTo(0, -m.r*0.4); ctx.lineTo(m.r*0.12, -m.r*0.52); ctx.closePath();
+        ctx.fillStyle = f>0?'#c09020':'#b07808'; ctx.fill();
+        // Talons
+        ctx.strokeStyle = f>0?'#aa8030':'#705010'; ctx.lineWidth=m.r*0.18; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.38, m.r*1.15); ctx.lineTo(-m.r*0.5, m.r*1.52+lw*m.r*0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.38, m.r*1.15); ctx.lineTo( m.r*0.5, m.r*1.52+rw*m.r*0.1); ctx.stroke();
+        // Talon toes (3 per foot)
+        ctx.strokeStyle = f>0?'#bbb':'#444'; ctx.lineWidth=m.r*0.1;
+        [-1,0,1].forEach(td=>{
+          ctx.beginPath(); ctx.moveTo(-m.r*0.5+td*m.r*0.0, m.r*1.52+lw*m.r*0.1); ctx.lineTo(-m.r*0.5+td*m.r*0.2, m.r*1.78); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( m.r*0.5+td*m.r*0.0, m.r*1.52+rw*m.r*0.1); ctx.lineTo( m.r*0.5+td*m.r*0.2, m.r*1.78); ctx.stroke();
+        });
+
+      } else if (shape === 'deer') {
+        // Deer — tan body, branching antlers, 4 legs, white belly; falling death animation
+        const falling = m.falling || false;
+        const fallAng = m.fallAngle || 0;
+        if (falling) {
+          ctx.save();
+          ctx.rotate(fallAng);
+        }
+        // Body — tan oval
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.08, m.r*0.82, m.r*0.55, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0?'#d4c090':'#c89848'; ctx.fill();
+        ctx.strokeStyle = f>0?'#bbb':'#8a5820'; ctx.lineWidth=1.5; ctx.stroke();
+        // White belly
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.12, m.r*0.5, m.r*0.3, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0?'#f0e8d0':'#f0e8c8'; ctx.fill();
+        // Legs — 4 thin legs, stiffen when falling
+        const legSway = falling ? 0 : Math.sin(m.bobAngle*2)*0.18;
+        ctx.strokeStyle = f>0?'#c8b070':'#a07030'; ctx.lineWidth=m.r*0.18; ctx.lineCap='round';
+        [[-0.5,0.42],[-0.18,0.46],[0.18,0.46],[0.5,0.42]].forEach(([lx,ly],li)=>{
+          const ls = falling ? 0 : Math.sin(m.bobAngle*2+li*0.8)*0.15;
+          ctx.beginPath(); ctx.moveTo(lx*m.r, ly*m.r); ctx.lineTo(lx*m.r + ls*m.r*0.2, m.r*(ly+0.52)); ctx.stroke();
+        });
+        // Neck
+        ctx.beginPath(); ctx.rect(-m.r*0.15, -m.r*0.52, m.r*0.3, m.r*0.38);
+        ctx.fillStyle = f>0?'#d4c090':'#c89848'; ctx.fill();
+        // Head
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.88, m.r*0.38, m.r*0.3, 0.15, 0, Math.PI*2);
+        ctx.fillStyle = f>0?'#d4c090':'#c89848'; ctx.fill(); ctx.strokeStyle=f>0?'#bbb':'#8a5820'; ctx.lineWidth=1.5; ctx.stroke();
+        // Snout
+        ctx.beginPath(); ctx.ellipse(m.r*0.2, -m.r*0.78, m.r*0.18, m.r*0.14, 0.3, 0, Math.PI*2);
+        ctx.fillStyle = f>0?'#c8b888':'#b08040'; ctx.fill();
+        // Eye — normal or X when falling
+        if (falling) {
+          ctx.strokeStyle = '#111'; ctx.lineWidth = m.r*0.12; ctx.lineCap='round';
+          ctx.beginPath(); ctx.moveTo(-m.r*0.14,-m.r*0.95); ctx.lineTo(-m.r*0.04,-m.r*0.82); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-m.r*0.04,-m.r*0.95); ctx.lineTo(-m.r*0.14,-m.r*0.82); ctx.stroke();
+        } else {
+          ctx.fillStyle = '#222';
+          ctx.beginPath(); ctx.arc(-m.r*0.1, -m.r*0.9, m.r*0.1, 0, Math.PI*2); ctx.fill();
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.beginPath(); ctx.arc(-m.r*0.07, -m.r*0.93, m.r*0.04, 0, Math.PI*2); ctx.fill();
+        }
+        // Ear
+        ctx.fillStyle = f>0?'#d4c090':'#c89848';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.3,-m.r*1.0); ctx.lineTo(-m.r*0.55,-m.r*1.32); ctx.lineTo(-m.r*0.12,-m.r*1.08); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = f>0?'#e8c0c0':'#e89888';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.3,-m.r*1.04); ctx.lineTo(-m.r*0.5,-m.r*1.25); ctx.lineTo(-m.r*0.16,-m.r*1.1); ctx.closePath(); ctx.fill();
+        // Antlers — 3 points each side (branching)
+        if (!falling || fallAng < 0.8) {
+          ctx.strokeStyle = f>0?'#c8a060':'#7a4810'; ctx.lineWidth=m.r*0.1; ctx.lineCap='round';
+          // Left antler
+          ctx.beginPath(); ctx.moveTo(-m.r*0.18,-m.r*1.12); ctx.lineTo(-m.r*0.38,-m.r*1.68); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-m.r*0.28,-m.r*1.42); ctx.lineTo(-m.r*0.58,-m.r*1.55); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-m.r*0.38,-m.r*1.68); ctx.lineTo(-m.r*0.62,-m.r*1.78); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(-m.r*0.38,-m.r*1.68); ctx.lineTo(-m.r*0.22,-m.r*1.92); ctx.stroke();
+          // Right antler
+          ctx.beginPath(); ctx.moveTo( m.r*0.1,-m.r*1.08); ctx.lineTo( m.r*0.32,-m.r*1.65); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( m.r*0.2,-m.r*1.38); ctx.lineTo( m.r*0.52,-m.r*1.5); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( m.r*0.32,-m.r*1.65); ctx.lineTo( m.r*0.58,-m.r*1.76); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( m.r*0.32,-m.r*1.65); ctx.lineTo( m.r*0.16,-m.r*1.9); ctx.stroke();
+        }
+        // White tail patch
+        ctx.beginPath(); ctx.arc(-m.r*0.75, -m.r*0.05, m.r*0.18, 0, Math.PI*2);
+        ctx.fillStyle = f>0?'#f5edd5':'#f0e8c8'; ctx.fill();
+        if (falling) ctx.restore();
+
       } else {
         // Default blob (wave 1)
         const grad = ctx.createRadialGradient(-m.r*0.3,-m.r*0.3,2,0,0,m.r*1.3);
@@ -3661,6 +4503,7 @@
       } else {
         setTimeout(() => { msgEl.textContent = ''; }, 1200);
       }
+      initCompanions();
     }
 
     document.getElementById('code-btn').addEventListener('click', () => {
@@ -4238,6 +5081,7 @@
         bossBarEl.style.display = 'none';
       }
       updateDinosaurs(dt);
+      updateCompanions(dt);
       updateMonsterTruck(dt);
       updateDeathParticles(dt);
       updateShockwaves(dt);
@@ -4253,6 +5097,7 @@
       // Draw
       drawBackground();
       drawDinosaurs();
+      drawCompanions();
       drawMonsterTruck();
       drawKidOrbiters();
       drawDrops();
