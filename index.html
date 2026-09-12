@@ -173,7 +173,7 @@
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div id="hint">WASD · SPACE attack · 1-4 weapon · E heal · R ride dino</div>
+  <div id="hint">WASD · SPACE attack · 1-4 weapon · E heal · R ride dino / truck</div>
   <div id="hud">
     <span id="hud-label">❤️ HP</span>
     <div id="health-bar-bg">
@@ -190,6 +190,13 @@
     <div id="currency-row">
       <span class="curr-item"><span class="curr-coin">🪙</span><span id="coin-count">0</span></span>
       <span class="curr-item"><span class="curr-diamond">💎</span><span id="diamond-count">0</span></span>
+    </div>
+  </div>
+  <div id="boss-bar" style="display:none; position:fixed; top:75px; left:50%; transform:translateX(-50%); width:340px; z-index:10; pointer-events:none;">
+    <div id="boss-bar-label" style="text-align:center; font-size:11px; font-weight:bold; color:#ff4444; font-family:monospace; letter-spacing:0.1em; text-shadow:0 0 8px #ff0000; margin-bottom:3px;"></div>
+    <div style="height:18px; background:#1a0000; border:2px solid #660000; border-radius:9px; overflow:hidden; position:relative;">
+      <div id="boss-bar-fill" style="height:100%; width:100%; background:linear-gradient(90deg,#cc0000,#ff4400,#ff8800); border-radius:9px; transition:width 0.1s;"></div>
+      <div id="boss-bar-text" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#fff;font-family:monospace;text-shadow:0 0 4px #000;"></div>
     </div>
   </div>
   <div id="kids-hud">
@@ -217,7 +224,7 @@
       <!-- Coin Wheel (golden) -->
       <div class="wheel-panel" style="border-color:#b8860b;">
         <div class="wheel-title" style="color:#ffd700">🪙 COIN WHEEL</div>
-        <div class="wheel-cost" id="coin-cost-label">Costs 20 🪙 · once per death</div>
+        <div class="wheel-cost" id="coin-cost-label">Costs 20 🪙 · spin until empty!</div>
         <div class="wheel-wrap">
           <canvas id="wheel-coin" class="wheel-canvas" width="220" height="220"></canvas>
           <div class="wheel-pointer" style="border-top-color:#ffd700;"></div>
@@ -228,7 +235,7 @@
       <!-- Diamond Wheel (blue) -->
       <div class="wheel-panel" style="border-color:#1565c0;">
         <div class="wheel-title" style="color:#44aaff">💎 DIAMOND WHEEL</div>
-        <div class="wheel-cost" id="diamond-cost-label">Costs 8 💎 · once per death</div>
+        <div class="wheel-cost" id="diamond-cost-label">Costs 8 💎 · spin until empty!</div>
         <div class="wheel-wrap">
           <canvas id="wheel-diamond" class="wheel-canvas" width="220" height="220"></canvas>
           <div class="wheel-pointer" style="border-top-color:#44aaff;"></div>
@@ -280,6 +287,10 @@
     const gameoverEl    = document.getElementById('gameover');
     const gameoverStats = document.getElementById('gameover-stats');
     const kidsRowEl     = document.getElementById('kids-row');
+    const bossBarEl     = document.getElementById('boss-bar');
+    const bossBarLabel  = document.getElementById('boss-bar-label');
+    const bossBarFill   = document.getElementById('boss-bar-fill');
+    const bossBarText   = document.getElementById('boss-bar-text');
 
     // --- Currency ---
     let coins    = 0;
@@ -476,6 +487,10 @@
         waveBarFill.style.width = '100%';
         waveBarFill.style.background = 'linear-gradient(90deg,#ffd700,#fff)';
         waveBarText.textContent = '✔ WAVE COMPLETE!';
+        // Wave 5+ boss kill → spawn the monster truck reward
+        if (wave.number >= 5 && !monsterTruck) {
+          spawnMonsterTruck();
+        }
       }
     }
 
@@ -582,14 +597,26 @@
         } else {
           if (i === inventory.equipped) div.classList.add('equipped');
           const maxed = slot.stars >= 5;
-          const isBombLegend = slot.weapon.id === 'bomb_gun' && maxed;
+          const isLegend = maxed && (slot.weapon.id === 'bomb_gun' || slot.weapon.id === 'sword');
+          const isSwordLegend = slot.weapon.id === 'sword' && maxed;
           const starColor = maxed ? '#ffd700' : '#aaa';
-          div.innerHTML = `<span class="slot-icon">${slot.weapon.icon}</span><span class="slot-name">${slot.weapon.name}</span><span class="slot-stars" style="color:${starColor}">${starsLabel(slot.stars)}</span>`;
-          if (isBombLegend) {
-            // Rainbow animated glow for legendary maxed Dino Cannon
+          // Legendary name overrides for 5★ shark weapons
+          let displayName = slot.weapon.name;
+          if (slot.weapon.id === 'rpg'     && maxed) displayName = '🦈 Shark RPG';
+          if (slot.weapon.id === 'bazooka' && maxed) displayName = '🦈 Shark Bazooka';
+          if (slot.weapon.id === 'sword'   && maxed) displayName = '⚡ Legendary Sword';
+          div.innerHTML = `<span class="slot-icon">${slot.weapon.icon}</span><span class="slot-name">${displayName}</span><span class="slot-stars" style="color:${starColor}">${starsLabel(slot.stars)}</span>`;
+          if (slot.weapon.id === 'bomb_gun' && maxed) {
+            // Golden legendary glow for Dino Cannon
             div.style.boxShadow = '0 0 22px 6px #ffd70099, 0 0 40px 10px #ff880066';
             div.style.border = '2px solid #ffd700';
             div.style.background = 'linear-gradient(135deg,#1c1200,#2a1800,#1c1200)';
+            div.style.animation = 'legendPulse 1.4s ease-in-out infinite';
+          } else if (isSwordLegend) {
+            // Electric blue legendary glow for 5★ sword
+            div.style.boxShadow = '0 0 22px 6px #44aaff99, 0 0 40px 10px #0066ff55';
+            div.style.border = '2px solid #44aaff';
+            div.style.background = 'linear-gradient(135deg,#000c1a,#001833,#000c1a)';
             div.style.animation = 'legendPulse 1.4s ease-in-out infinite';
           } else if (maxed) {
             div.style.boxShadow = '0 0 14px 3px #ffd70077';
@@ -867,11 +894,13 @@
           shockwaves.push({ x: megaDino.x, y: megaDino.y, r: 10, life: 1.5 });
                     const mx = megaDino.x, my = megaDino.y;
           megaDino = null;
-          // Spawn fresh pack of 5 normal dinos at the mega's last position
+          // Spawn fresh pack of 5 normal dinos at the mega's last position (if truck not active)
           dinoDeathCount = 0;
-          for (let i = 0; i < 5; i++) {
-            const a = (i / 5) * Math.PI * 2;
-            spawnDino(mx + Math.cos(a) * 60, my + Math.sin(a) * 60);
+          if (!dinosDisabled) {
+            for (let i = 0; i < 5; i++) {
+              const a = (i / 5) * Math.PI * 2;
+              spawnDino(mx + Math.cos(a) * 60, my + Math.sin(a) * 60);
+            }
           }
           renderDinoHUD();
         }
@@ -1041,8 +1070,590 @@
       if (megaDino) drawDinosaur(megaDino);
     }
 
+    // =====================================================================
+    // MONSTER TRUCK
+    // =====================================================================
+    let monsterTruck = null;       // null when not active
+    let ridingTruck  = false;      // is the egg currently on the truck?
+    let dinosDisabled = false;     // true while truck is active
+
+    function spawnMonsterTruck() {
+      // Kill all dinos — truck replaces them
+      dinosaurs.length = 0;
+      if (megaDino)  { megaDino = null; }
+      if (ridingDino) { ridingDino = null; egg.speed = 4; }
+      dinosDisabled = true;
+      renderDinoHUD();
+
+      const cx = canvas.width / 2, cy = canvas.height * 0.75;
+      monsterTruck = {
+        x: cx, y: cy,
+        w: 120, h: 60,
+        speed: 6.5,
+        hp: 999, maxHp: 999,
+        angle: 0,            // heading angle (radians, 0 = right)
+        bobAngle: 0,
+        gunCooldown: 0,
+        rocketCooldown: 0,
+      };
+      // Big dramatic entrance flash
+      for (let i = 0; i < 40; i++) {
+        const a = (i / 40) * Math.PI * 2;
+        deathParticles.push({
+          x: cx, y: cy,
+          vx: Math.cos(a) * (4 + Math.random() * 10),
+          vy: Math.sin(a) * (4 + Math.random() * 10),
+          life: 1.0, r: 8 + Math.random() * 10,
+          color: ['#ff4400','#ffcc00','#ff8800'][Math.floor(Math.random()*3)],
+        });
+      }
+      shockwaves.push({ x: cx, y: cy, r: 10, life: 1.8 });
+      pickupFlash = { text: '🚛 MONSTER TRUCK!', life: 1.5, upgrade: true };
+    }
+
+    function tryRideTruck() {
+      if (!monsterTruck) return false;
+      const dx = egg.x - monsterTruck.x, dy = egg.y - monsterTruck.y;
+      if (Math.sqrt(dx*dx + dy*dy) < monsterTruck.w * 0.7) {
+        if (ridingTruck) {
+          // Dismount — re-enable dinos
+          ridingTruck = false;
+          egg.speed   = 4;
+          dinosDisabled = false;
+          renderDinoHUD();
+        } else {
+          ridingTruck = true;
+          egg.speed   = monsterTruck.speed;
+        }
+        return true;
+      }
+      return false;
+    }
+
+    function updateMonsterTruck(dt) {
+      if (!monsterTruck) return;
+      monsterTruck.bobAngle += 0.06 * dt;
+
+      if (ridingTruck) {
+        // Truck follows egg position exactly (egg rides on top)
+        monsterTruck.x = egg.x;
+        monsterTruck.y = egg.y + 18;
+        // Truck faces the direction the egg is aiming
+        if (egg.isMoving) {
+          monsterTruck.angle = Math.atan2(egg.aimDY, egg.aimDX);
+        }
+
+        // Auto-fire front guns at nearest monster
+        monsterTruck.gunCooldown -= dt;
+        if (monsterTruck.gunCooldown <= 0) {
+          monsterTruck.gunCooldown = 12;
+          // Fire 2 front gun bullets
+          for (let g = -1; g <= 1; g += 2) {
+            const fireA = monsterTruck.angle + g * 0.15;
+            const ox = Math.cos(monsterTruck.angle) * 65;
+            const oy = Math.sin(monsterTruck.angle) * 65;
+            const px = monsterTruck.x + ox + Math.cos(monsterTruck.angle + Math.PI/2) * g * 12;
+            const py = monsterTruck.y + oy + Math.sin(monsterTruck.angle + Math.PI/2) * g * 12;
+            bullets.push({
+              x: px, y: py,
+              vx: Math.cos(fireA) * 22,
+              vy: Math.sin(fireA) * 22,
+              life: 0.7, dist: 0, bomb: false,
+              weaponId: 'truck_gun', blastRadius: 0, shark: false,
+            });
+          }
+        }
+
+        // Auto-fire rear rockets at nearest monster
+        monsterTruck.rocketCooldown -= dt;
+        if (monsterTruck.rocketCooldown <= 0) {
+          monsterTruck.rocketCooldown = 45;
+          // Aim rear rockets backward toward nearest monster
+          let nearestM = null, bestD = Infinity;
+          for (const m of monsters) {
+            const dx = m.x - monsterTruck.x, dy = m.y - monsterTruck.y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < bestD) { bestD = d; nearestM = m; }
+          }
+          const aimA = nearestM
+            ? Math.atan2(nearestM.y - monsterTruck.y, nearestM.x - monsterTruck.x)
+            : monsterTruck.angle + Math.PI;
+          const bx2 = monsterTruck.x - Math.cos(monsterTruck.angle) * 65;
+          const by2 = monsterTruck.y - Math.sin(monsterTruck.angle) * 65;
+          bullets.push({
+            x: bx2, y: by2,
+            vx: Math.cos(aimA) * 14,
+            vy: Math.sin(aimA) * 14,
+            life: 1.0, dist: 0, bomb: true,
+            weaponId: 'rpg', blastRadius: 200, shark: false,
+          });
+        }
+      } else {
+        // Unridden truck slowly drifts toward center
+        const dx = canvas.width/2  - monsterTruck.x;
+        const dy = canvas.height/2 - monsterTruck.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        if (dist > 40) {
+          monsterTruck.x += (dx/dist) * 1.2 * dt;
+          monsterTruck.y += (dy/dist) * 1.2 * dt;
+        }
+      }
+
+      // Collide with and crush monsters
+      for (let j = monsters.length - 1; j >= 0; j--) {
+        const m = monsters[j];
+        const dx = m.x - monsterTruck.x, dy = m.y - monsterTruck.y;
+        if (Math.sqrt(dx*dx + dy*dy) < monsterTruck.w * 0.6 + m.r) {
+          if (m.golden) dropWeaponAt(m.x, m.y);
+          spawnDeathParticles(m.x, m.y, m.color);
+          spawnDeathParticles(m.x, m.y, '#ff6600');
+          onKill(m);
+          monsters.splice(j, 1);
+        }
+      }
+    }
+
+    function drawMonsterTruck() {
+      if (!monsterTruck) return;
+      const t = monsterTruck;
+      const bob = Math.sin(t.bobAngle) * 2;
+
+      ctx.save();
+      ctx.translate(t.x, t.y + bob);
+      ctx.rotate(t.angle);
+
+      const w = t.w, h = t.h;
+
+      // ---- Shadow ----
+      ctx.save();
+      ctx.scale(1, 0.3);
+      ctx.beginPath();
+      ctx.ellipse(0, h * 0.7, w * 0.55, h * 0.35, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+      ctx.restore();
+
+      // ---- Rear rocket launchers (2 tubes at back) ----
+      [-1, 1].forEach(side => {
+        const ry = side * h * 0.28;
+        // Tube
+        ctx.fillStyle = '#444';
+        ctx.beginPath(); ctx.roundRect(-w * 0.5 - 22, ry - 5, 22, 10, 3); ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.beginPath(); ctx.arc(-w*0.5 - 22, ry, 5, 0, Math.PI * 2); ctx.fill();
+        // Glow at opening
+        const rocketGlow = monsterTruck.rocketCooldown < 5
+          ? `rgba(255,100,0,${0.7 - monsterTruck.rocketCooldown * 0.14})`
+          : 'rgba(255,60,0,0.15)';
+        ctx.beginPath(); ctx.arc(-w*0.5 - 22, ry, 5, 0, Math.PI * 2);
+        ctx.fillStyle = rocketGlow; ctx.fill();
+      });
+
+      // ---- Body (main chassis) ----
+      // Undercarriage
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.roundRect(-w*0.5, -h*0.25, w, h*0.5, 4); ctx.fill();
+
+      // Body shell
+      const bodyGrd = ctx.createLinearGradient(-w*0.5, -h*0.45, -w*0.5, h*0.1);
+      bodyGrd.addColorStop(0, '#cc3300');
+      bodyGrd.addColorStop(0.4, '#ff4400');
+      bodyGrd.addColorStop(1, '#881100');
+      ctx.fillStyle = bodyGrd;
+      ctx.beginPath(); ctx.roundRect(-w*0.48, -h*0.45, w*0.96, h*0.55, 8); ctx.fill();
+
+      // Cab top
+      ctx.fillStyle = '#cc2200';
+      ctx.beginPath(); ctx.roundRect(-w*0.08, -h*0.82, w*0.44, h*0.42, 6); ctx.fill();
+      ctx.fillStyle = '#ff5522';
+      ctx.beginPath(); ctx.roundRect(-w*0.06, -h*0.79, w*0.42, h*0.18, 4); ctx.fill();
+
+      // Windshield
+      ctx.fillStyle = 'rgba(100,200,255,0.55)';
+      ctx.beginPath(); ctx.roundRect(w*0.1, -h*0.77, w*0.22, h*0.3, 4); ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.stroke();
+
+      // Skull decal on hood
+      ctx.font = `bold ${h * 0.35}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('💀', w * 0.08, -h * 0.08);
+
+      // ---- Front guns (2 cannons on front) ----
+      [-1, 1].forEach(side => {
+        const gy = side * h * 0.22;
+        ctx.fillStyle = '#333';
+        ctx.beginPath(); ctx.roundRect(w*0.48, gy - 4, 24, 8, 3); ctx.fill();
+        ctx.fillStyle = '#555';
+        ctx.beginPath(); ctx.roundRect(w*0.5, gy - 3, 20, 6, 2); ctx.fill();
+        // Muzzle flash
+        if (monsterTruck.gunCooldown < 3) {
+          const flash = ctx.createRadialGradient(w*0.5+22, gy, 0, w*0.5+22, gy, 12);
+          flash.addColorStop(0, 'rgba(255,240,100,0.9)');
+          flash.addColorStop(1, 'transparent');
+          ctx.beginPath(); ctx.arc(w*0.5+22, gy, 12, 0, Math.PI*2);
+          ctx.fillStyle = flash; ctx.fill();
+        }
+      });
+
+      // ---- Monster wheels (4 oversized) ----
+      const wheelPositions = [
+        [-w*0.38, -h*0.12], [w*0.32, -h*0.12],
+        [-w*0.38,  h*0.12], [w*0.32,  h*0.12],
+      ];
+      wheelPositions.forEach(([wx2, wy2]) => {
+        const wr = h * 0.38;
+        // Outer tyre (big chunky)
+        ctx.beginPath(); ctx.arc(wx2, wy2, wr, 0, Math.PI * 2);
+        ctx.fillStyle = '#1a1a1a'; ctx.fill();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 3; ctx.stroke();
+        // Tread pattern (8 notches)
+        ctx.strokeStyle = '#444'; ctx.lineWidth = 2;
+        for (let n = 0; n < 8; n++) {
+          const na = n * Math.PI / 4 + t.bobAngle * 2;
+          ctx.beginPath();
+          ctx.moveTo(wx2 + Math.cos(na) * (wr * 0.75), wy2 + Math.sin(na) * (wr * 0.75));
+          ctx.lineTo(wx2 + Math.cos(na) * wr,          wy2 + Math.sin(na) * wr);
+          ctx.stroke();
+        }
+        // Rim
+        ctx.beginPath(); ctx.arc(wx2, wy2, wr * 0.48, 0, Math.PI * 2);
+        ctx.fillStyle = '#888'; ctx.fill();
+        ctx.beginPath(); ctx.arc(wx2, wy2, wr * 0.25, 0, Math.PI * 2);
+        ctx.fillStyle = '#333'; ctx.fill();
+        // Hub bolts
+        for (let b2 = 0; b2 < 5; b2++) {
+          const ba = (b2/5) * Math.PI * 2 + t.bobAngle * 2;
+          ctx.beginPath();
+          ctx.arc(wx2 + Math.cos(ba)*wr*0.35, wy2 + Math.sin(ba)*wr*0.35, 2.5, 0, Math.PI*2);
+          ctx.fillStyle = '#ccc'; ctx.fill();
+        }
+      });
+
+      // ---- RIDING label ----
+      if (ridingTruck) {
+        ctx.save();
+        ctx.rotate(-t.angle); // un-rotate so text is always upright
+        ctx.font = 'bold 13px monospace';
+        ctx.fillStyle = '#ffcc00'; ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 10;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        ctx.fillText('🚛 RIDING TRUCK', 0, -h * 0.95);
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // =====================================================================
+    // THEMED PLAYER SKINS
+    // =====================================================================
+    function drawSonicSkin(x, y, walkAngle, bobY, squash) {
+      ctx.save();
+      ctx.translate(x, y + bobY);
+      ctx.scale(1 / squash, squash);
+
+      const lSwing = Math.sin(walkAngle);
+      const rSwing = -Math.sin(walkAngle);
+
+      // ---- Ground shadow ----
+      ctx.save(); ctx.scale(1, 0.22);
+      ctx.beginPath(); ctx.ellipse(0, 44, 20, 9, 0, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fill();
+      ctx.restore();
+
+      // ---- LEGS ----
+      // Left leg
+      ctx.save();
+      ctx.translate(-7, 14);
+      ctx.rotate(lSwing * 0.55);
+      // Upper leg
+      ctx.beginPath(); ctx.roundRect(-4, 0, 8, 16, 3);
+      ctx.fillStyle = '#1c6fe0'; ctx.fill();
+      // Lower leg / calf (slightly offset)
+      ctx.save(); ctx.translate(0, 14); ctx.rotate(lSwing * 0.3);
+      ctx.beginPath(); ctx.roundRect(-3, 0, 7, 12, 3);
+      ctx.fillStyle = '#1550b0'; ctx.fill();
+      // LEFT SHOE
+      ctx.save(); ctx.translate(0, 11);
+      // Shoe body — red rounded
+      ctx.beginPath(); ctx.roundRect(-9, -5, 22, 9, 5);
+      ctx.fillStyle = '#e02020'; ctx.fill();
+      ctx.strokeStyle = '#900000'; ctx.lineWidth = 1; ctx.stroke();
+      // White toe stripe
+      ctx.beginPath(); ctx.roundRect(-7, -3, 8, 4, 2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      // Gold buckle
+      ctx.beginPath(); ctx.roundRect(3, -3, 6, 6, 1);
+      ctx.fillStyle = '#ffd700'; ctx.fill();
+      ctx.strokeStyle = '#aa8800'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.restore(); ctx.restore(); ctx.restore();
+
+      // Right leg
+      ctx.save();
+      ctx.translate(7, 14);
+      ctx.rotate(rSwing * 0.55);
+      ctx.beginPath(); ctx.roundRect(-4, 0, 8, 16, 3);
+      ctx.fillStyle = '#1c6fe0'; ctx.fill();
+      ctx.save(); ctx.translate(0, 14); ctx.rotate(rSwing * 0.3);
+      ctx.beginPath(); ctx.roundRect(-3, 0, 7, 12, 3);
+      ctx.fillStyle = '#1550b0'; ctx.fill();
+      // RIGHT SHOE
+      ctx.save(); ctx.translate(0, 11);
+      ctx.beginPath(); ctx.roundRect(-9, -5, 22, 9, 5);
+      ctx.fillStyle = '#e02020'; ctx.fill();
+      ctx.strokeStyle = '#900000'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(-7, -3, 8, 4, 2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.beginPath(); ctx.roundRect(3, -3, 6, 6, 1);
+      ctx.fillStyle = '#ffd700'; ctx.fill();
+      ctx.strokeStyle = '#aa8800'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.restore(); ctx.restore(); ctx.restore();
+
+      // ---- TORSO ----
+      ctx.beginPath(); ctx.ellipse(0, 4, 14, 17, 0, 0, Math.PI*2);
+      ctx.fillStyle = '#1c6fe0'; ctx.fill();
+      ctx.strokeStyle = '#0a40a0'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Cream/tan belly
+      ctx.beginPath(); ctx.ellipse(0, 8, 9, 11, 0, 0, Math.PI*2);
+      ctx.fillStyle = '#f5deb3'; ctx.fill();
+
+      // ---- ARMS (white gloves) ----
+      // Left arm
+      ctx.save();
+      ctx.translate(-15, -2);
+      ctx.rotate(-0.4 + lSwing * 0.5);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-8, 14);
+      ctx.strokeStyle = '#1c6fe0'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+      // glove
+      ctx.beginPath(); ctx.arc(-8, 14, 6, 0, Math.PI*2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+
+      // Right arm
+      ctx.save();
+      ctx.translate(15, -2);
+      ctx.rotate(0.4 + rSwing * 0.5);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(8, 14);
+      ctx.strokeStyle = '#1c6fe0'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(8, 14, 6, 0, Math.PI*2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = '#ccc'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+
+      // ---- HEAD ----
+      // Back spikes (drawn first, behind head)
+      ctx.fillStyle = '#1c6fe0';
+      const spikeData = [
+        { a: -2.1, len: 22, w: 0.38 },
+        { a: -2.6, len: 20, w: 0.35 },
+        { a: -3.1, len: 18, w: 0.32 },
+        { a: -3.6, len: 16, w: 0.30 },
+        { a:  2.9, len: 14, w: 0.28 },
+      ];
+      for (const sp of spikeData) {
+        const bx2 = Math.cos(sp.a) * 12 - 2;
+        const by2 = Math.sin(sp.a) * 12 - 20;
+        ctx.beginPath();
+        ctx.moveTo(bx2, by2);
+        ctx.lineTo(bx2 + Math.cos(sp.a - sp.w) * sp.len, by2 + Math.sin(sp.a - sp.w) * sp.len);
+        ctx.lineTo(bx2 + Math.cos(sp.a + sp.w) * sp.len, by2 + Math.sin(sp.a + sp.w) * sp.len);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#0a40a0'; ctx.lineWidth = 0.8; ctx.stroke();
+      }
+
+      // Main head circle
+      ctx.beginPath(); ctx.arc(-2, -20, 16, 0, Math.PI*2);
+      ctx.fillStyle = '#1c6fe0'; ctx.fill();
+      ctx.strokeStyle = '#0a40a0'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Ear — right ear tab
+      ctx.beginPath();
+      ctx.moveTo(8, -32); ctx.lineTo(14, -40); ctx.lineTo(16, -28);
+      ctx.closePath();
+      ctx.fillStyle = '#1c6fe0'; ctx.fill();
+      ctx.strokeStyle = '#0a40a0'; ctx.lineWidth = 1; ctx.stroke();
+      // Inner ear
+      ctx.beginPath();
+      ctx.moveTo(9, -32); ctx.lineTo(13, -38); ctx.lineTo(14, -29);
+      ctx.closePath();
+      ctx.fillStyle = '#f09090'; ctx.fill();
+
+      // Tan muzzle — protruding snout
+      ctx.beginPath(); ctx.ellipse(6, -14, 10, 8, 0.15, 0, Math.PI*2);
+      ctx.fillStyle = '#f5deb3'; ctx.fill();
+      ctx.strokeStyle = 'rgba(180,120,60,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+      // Nose — small black oval on tip of muzzle
+      ctx.beginPath(); ctx.ellipse(13, -15, 3.5, 2.5, 0.2, 0, Math.PI*2);
+      ctx.fillStyle = '#111'; ctx.fill();
+      // Nose shine
+      ctx.beginPath(); ctx.arc(12, -16, 1, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
+
+      // Mouth — open grin with teeth
+      ctx.beginPath();
+      ctx.moveTo(2, -10);
+      ctx.quadraticCurveTo(8, -5, 14, -10);
+      ctx.strokeStyle = 'rgba(80,40,10,0.8)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.stroke();
+      // Teeth showing
+      ctx.beginPath();
+      ctx.moveTo(3, -10);
+      ctx.quadraticCurveTo(8, -4, 13, -10);
+      ctx.lineTo(13, -10);
+      ctx.closePath();
+      ctx.fillStyle = '#fff'; ctx.fill();
+      // Tooth divider
+      ctx.beginPath(); ctx.moveTo(8, -10); ctx.lineTo(8, -5);
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+      // Eye — single large connected eye (Sonic style)
+      const lookX = egg.dirX * 1.8, lookY = egg.dirY * 1.2;
+      // White sclera
+      ctx.beginPath(); ctx.ellipse(-4 + lookX * 0.3, -22 + lookY * 0.3, 9, 10, -0.15, 0, Math.PI*2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 0.8; ctx.stroke();
+      // Green iris
+      ctx.beginPath(); ctx.ellipse(-3 + lookX, -22 + lookY, 5.5, 6.5, -0.15, 0, Math.PI*2);
+      ctx.fillStyle = '#22bb22'; ctx.fill();
+      // Pupil
+      ctx.beginPath(); ctx.arc(-3 + lookX, -22 + lookY, 3, 0, Math.PI*2);
+      ctx.fillStyle = '#0a0a0a'; ctx.fill();
+      // Eye shine
+      ctx.beginPath(); ctx.arc(-5 + lookX, -24 + lookY, 1.5, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+      // Angry brow — thick angled line above eye
+      ctx.beginPath();
+      ctx.moveTo(-12, -30); ctx.lineTo(1, -33);
+      ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawRobloxSkin(x, y, walkAngle, bobY, squash) {
+      ctx.save();
+      ctx.translate(x, y + bobY);
+      ctx.scale(1 / squash, squash);
+
+      // Shadow
+      ctx.save(); ctx.scale(1, 0.25);
+      ctx.beginPath(); ctx.ellipse(0, 36, 16, 7, 0, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+      ctx.restore();
+
+      // Legs
+      const legSwing = Math.sin(walkAngle) * 0.25;
+      ctx.save(); ctx.translate(-7, 14); ctx.rotate(-legSwing - 0.15);
+      ctx.fillStyle = '#222'; ctx.beginPath(); ctx.roundRect(-5, 0, 10, 18, 2); ctx.fill();
+      ctx.restore();
+      ctx.save(); ctx.translate(7, 14); ctx.rotate(legSwing + 0.15);
+      ctx.fillStyle = '#222'; ctx.beginPath(); ctx.roundRect(-5, 0, 10, 18, 2); ctx.fill();
+      ctx.restore();
+
+      // Body — dark hoodie
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath(); ctx.roundRect(-13, -4, 26, 20, 3); ctx.fill();
+      // Red "R" on chest
+      ctx.font = 'bold 12px monospace'; ctx.fillStyle = '#ff2222';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('R', 0, 6);
+
+      // Arms
+      const armSwing = Math.sin(walkAngle) * 0.3;
+      ctx.save(); ctx.translate(-16, -2); ctx.rotate(-armSwing - 0.2);
+      ctx.fillStyle = '#f5c27a'; ctx.beginPath(); ctx.roundRect(-4, 0, 8, 16, 2); ctx.fill();
+      ctx.restore();
+      ctx.save(); ctx.translate(16, -2); ctx.rotate(armSwing + 0.2);
+      ctx.fillStyle = '#f5c27a'; ctx.beginPath(); ctx.roundRect(-4, 0, 8, 16, 2); ctx.fill();
+      ctx.restore();
+
+      // Head — yellow/tan square
+      ctx.fillStyle = '#f5c27a';
+      ctx.beginPath(); ctx.roundRect(-14, -28, 28, 26, 3); ctx.fill();
+      ctx.strokeStyle = '#c8922a'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Sunglasses — two black rectangles
+      ctx.fillStyle = '#111';
+      ctx.beginPath(); ctx.roundRect(-12, -22, 10, 7, 2); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(2, -22, 10, 7, 2); ctx.fill();
+      // Bridge
+      ctx.beginPath(); ctx.moveTo(-2, -18); ctx.lineTo(2, -18);
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+
+      // Smile
+      ctx.beginPath(); ctx.arc(0, -10, 6, 0.2, Math.PI - 0.2);
+      ctx.strokeStyle = '#8a5c2a'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawSteveSkin(x, y, walkAngle, bobY, squash) {
+      ctx.save();
+      ctx.translate(x, y + bobY);
+      ctx.scale(1 / squash, squash);
+
+      // Shadow
+      ctx.save(); ctx.scale(1, 0.25);
+      ctx.beginPath(); ctx.ellipse(0, 38, 16, 7, 0, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+      ctx.restore();
+
+      // Legs (gray pants)
+      const legSwing = Math.sin(walkAngle) * 0.28;
+      ctx.save(); ctx.translate(-7, 14); ctx.rotate(-legSwing - 0.1);
+      ctx.fillStyle = '#5a6680'; ctx.beginPath(); ctx.rect(-5, 0, 10, 20); ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+      ctx.save(); ctx.translate(7, 14); ctx.rotate(legSwing + 0.1);
+      ctx.fillStyle = '#5a6680'; ctx.beginPath(); ctx.rect(-5, 0, 10, 20); ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+
+      // Body — blue shirt
+      ctx.fillStyle = '#3f5fa0';
+      ctx.beginPath(); ctx.rect(-13, -4, 26, 20); ctx.fill();
+      ctx.strokeStyle = '#2a3d6a'; ctx.lineWidth = 1; ctx.stroke();
+
+      // Arms
+      const armSwing = Math.sin(walkAngle) * 0.28;
+      ctx.save(); ctx.translate(-17, -3); ctx.rotate(-armSwing - 0.15);
+      ctx.fillStyle = '#3f5fa0'; ctx.beginPath(); ctx.rect(-4, 0, 8, 18); ctx.fill();
+      ctx.strokeStyle = '#2a3d6a'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+      ctx.save(); ctx.translate(17, -3); ctx.rotate(armSwing + 0.15);
+      ctx.fillStyle = '#3f5fa0'; ctx.beginPath(); ctx.rect(-4, 0, 8, 18); ctx.fill();
+      ctx.strokeStyle = '#2a3d6a'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+
+      // Head — peach face square
+      ctx.fillStyle = '#c8a070';
+      ctx.beginPath(); ctx.rect(-14, -30, 28, 26); ctx.fill();
+      ctx.strokeStyle = '#8a5c2a'; ctx.lineWidth = 1; ctx.stroke();
+
+      // Brown hair on top
+      ctx.fillStyle = '#6b3e26';
+      ctx.beginPath(); ctx.rect(-14, -32, 28, 8); ctx.fill();
+      ctx.strokeStyle = '#3a1e0a'; ctx.lineWidth = 1; ctx.stroke();
+
+      // Pixel eyes (dark squares)
+      ctx.fillStyle = '#333';
+      ctx.beginPath(); ctx.rect(-9, -22, 6, 6); ctx.fill();
+      ctx.beginPath(); ctx.rect(3, -22, 6, 6); ctx.fill();
+
+      // Pixel mouth
+      ctx.fillStyle = '#7a3c1a';
+      ctx.beginPath(); ctx.rect(-7, -11, 14, 4); ctx.fill();
+
+      ctx.restore();
+    }
+
     // --- Draw egg character ---
     function drawEgg(x, y, walkAngle, bobY, squash) {
+      // Theme-based player skin replaces egg body
+      if (activeTheme === 'sonic')     { drawSonicSkin(x, y, walkAngle, bobY, squash); return; }
+      if (activeTheme === 'backrooms') { drawRobloxSkin(x, y, walkAngle, bobY, squash); return; }
+      if (activeTheme === 'minecraft') { drawSteveSkin(x, y, walkAngle, bobY, squash); return; }
+
       ctx.save();
       ctx.translate(x, y + bobY);
 
@@ -1876,11 +2487,14 @@
       const by = armPivotY + Math.sin(fireAngle) * 32;
       const speed  = w.id === 'rpg' ? 18 : w.id === 'bazooka' ? 10 : 14;
       const radius = w.id === 'rpg' ? 150 : w.id === 'bazooka' ? 210 : 110;
+      // 5★ RPG/Bazooka fires shark rockets
+      const isSharkWeapon = (w.id === 'rpg' || w.id === 'bazooka') && equippedStars() >= 5;
       bullets.push({ x: bx, y: by,
         vx: Math.cos(fireAngle) * speed,
         vy: Math.sin(fireAngle) * speed,
         life: 1.0, dist: 0, bomb: true,
         weaponId: w.id, blastRadius: radius,
+        shark: isSharkWeapon,
       });
       egg.muzzleFlash = 1.0;
       egg.recoil = 1.0;
@@ -1921,8 +2535,8 @@
           }
         }
       }
-      // 5-star bomb_gun: ALWAYS spawn a dino at the blast site
-      if (maxed && isBombGun) {
+      // 5-star bomb_gun: ALWAYS spawn a dino at the blast site (unless truck is active)
+      if (maxed && isBombGun && !dinosDisabled) {
         spawnDino(bx, by);
       }
       // Big explosion particle burst
@@ -2006,73 +2620,98 @@
         const growScale = Math.min(1, b.dist / 600);
 
         if (b.weaponId === 'rpg' || b.weaponId === 'bazooka') {
-          // ---- Rocket projectile ----
-          const isRpg = b.weaponId === 'rpg';
+          const isRpg   = b.weaponId === 'rpg';
+          const isShark = b.shark === true;
           ctx.save();
           ctx.translate(b.x, b.y);
           ctx.rotate(Math.atan2(b.vy, b.vx));
 
-          // Fire exhaust trail
-          const trailLen = isRpg ? 30 + growScale * 20 : 40 + growScale * 30;
-          const trailGrd = ctx.createLinearGradient(-trailLen, 0, 0, 0);
-          trailGrd.addColorStop(0, 'transparent');
-          trailGrd.addColorStop(0.5, `rgba(255,100,0,${b.life * 0.5})`);
-          trailGrd.addColorStop(1, `rgba(255,220,50,${b.life * 0.9})`);
-          ctx.beginPath();
-          ctx.moveTo(0, 0);
-          // Wavy trail
-          for (let t = 0; t <= 1; t += 0.1) {
-            const tx = -trailLen * t;
-            const ty = Math.sin(t * Math.PI * 3 + b.dist * 0.3) * (isRpg ? 3 : 5) * t;
-            t === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
-          }
-          ctx.lineWidth = isRpg ? 6 : 9;
-          ctx.strokeStyle = trailGrd;
-          ctx.lineCap = 'round';
-          ctx.stroke();
-
-          // Rocket body
-          const bodyLen = isRpg ? 22 : 30;
-          const bodyH   = isRpg ? 5  : 8;
-          ctx.fillStyle = isRpg ? '#555' : '#8B4513';
-          ctx.beginPath();
-          ctx.roundRect(-bodyLen * 0.6, -bodyH / 2, bodyLen, bodyH, bodyH * 0.3);
-          ctx.fill();
-          ctx.fillStyle = isRpg ? '#777' : '#a0522d';
-          ctx.beginPath();
-          ctx.roundRect(-bodyLen * 0.6, -bodyH / 2, bodyLen * 0.7, bodyH * 0.5, 2);
-          ctx.fill();
-
-          // Nose cone
-          ctx.fillStyle = isRpg ? '#cc3300' : '#cc6600';
-          ctx.beginPath();
-          const noseX = bodyLen * 0.4;
-          ctx.moveTo(noseX, 0);
-          ctx.lineTo(noseX - bodyLen * 0.3, -bodyH / 2);
-          ctx.lineTo(noseX - bodyLen * 0.3,  bodyH / 2);
-          ctx.closePath();
-          ctx.fill();
-
-          // Fins (back)
-          ctx.fillStyle = isRpg ? '#333' : '#5a2d0c';
-          const finX = -bodyLen * 0.55;
-          [[-bodyH, -bodyH * 1.6], [bodyH * 0.1, bodyH * 1.6]].forEach(([y1, y2]) => {
+          if (isShark) {
+            // ---- SHARK ROCKET (5★ RPG or Bazooka) ----
+            const sz = isRpg ? 1.0 : 1.5; // bazooka is bigger
+            // Bubble trail (blue/cyan)
+            const trailLen = (isRpg ? 30 : 45) + growScale * 25;
+            const trailGrd = ctx.createLinearGradient(-trailLen, 0, 0, 0);
+            trailGrd.addColorStop(0, 'transparent');
+            trailGrd.addColorStop(0.5, `rgba(0,150,255,${b.life * 0.5})`);
+            trailGrd.addColorStop(1, `rgba(0,220,255,${b.life * 0.9})`);
+            for (let t = 0; t <= 1; t += 0.15) {
+              const bx2 = -trailLen * t;
+              const by2 = Math.sin(t * Math.PI * 4 + b.dist * 0.4) * 4 * t;
+              ctx.beginPath(); ctx.arc(bx2, by2, (1.5 + Math.random() * 2) * b.life, 0, Math.PI*2);
+              ctx.fillStyle = `rgba(0,200,255,${(1-t) * b.life * 0.5})`; ctx.fill();
+            }
+            // Shark body torpedo
+            ctx.fillStyle = '#2255aa';
+            ctx.beginPath(); ctx.roundRect(-14*sz, -5*sz, 30*sz, 10*sz, 5*sz); ctx.fill();
+            ctx.fillStyle = '#4488ee';
+            ctx.beginPath(); ctx.roundRect(-13*sz, -4*sz, 28*sz, 4*sz, 3*sz); ctx.fill();
+            // Dorsal fin
+            ctx.fillStyle = '#1a4488';
             ctx.beginPath();
-            ctx.moveTo(finX, y1);
-            ctx.lineTo(finX - bodyLen * 0.25, y2);
-            ctx.lineTo(finX + bodyLen * 0.15, y1);
-            ctx.closePath();
-            ctx.fill();
-          });
+            ctx.moveTo(-2*sz, -5*sz); ctx.lineTo(3*sz, -14*sz); ctx.lineTo(8*sz, -5*sz);
+            ctx.closePath(); ctx.fill();
+            // Snout / nose
+            ctx.fillStyle = '#ddeeff';
+            ctx.beginPath();
+            ctx.moveTo(16*sz, -4*sz); ctx.lineTo(26*sz, 0); ctx.lineTo(16*sz, 4*sz);
+            ctx.closePath(); ctx.fill();
+            // Teeth
+            ctx.fillStyle = '#fff';
+            for (let tk = 0; tk < 3; tk++) {
+              ctx.beginPath();
+              ctx.moveTo(11*sz + tk*3*sz, -2*sz); ctx.lineTo(12.5*sz + tk*3*sz, 0);
+              ctx.lineTo(14*sz + tk*3*sz, -2*sz); ctx.closePath(); ctx.fill();
+            }
+            // Tail fin (back)
+            ctx.fillStyle = '#2255aa';
+            ctx.beginPath();
+            ctx.moveTo(-14*sz, -2*sz); ctx.lineTo(-22*sz, -8*sz);
+            ctx.lineTo(-20*sz, 0); ctx.lineTo(-22*sz, 8*sz); ctx.lineTo(-14*sz, 2*sz);
+            ctx.closePath(); ctx.fill();
+            // Eye
+            ctx.beginPath(); ctx.arc(7*sz, -1*sz, 2.5*sz, 0, Math.PI*2);
+            ctx.fillStyle = '#111'; ctx.fill();
+            ctx.beginPath(); ctx.arc(6.5*sz, -1.5*sz, 0.8*sz, 0, Math.PI*2);
+            ctx.fillStyle = '#fff'; ctx.fill();
+          } else {
+            // ---- Normal rocket projectile ----
+            const trailLen = isRpg ? 30 + growScale * 20 : 40 + growScale * 30;
+            const trailGrd = ctx.createLinearGradient(-trailLen, 0, 0, 0);
+            trailGrd.addColorStop(0, 'transparent');
+            trailGrd.addColorStop(0.5, `rgba(255,100,0,${b.life * 0.5})`);
+            trailGrd.addColorStop(1, `rgba(255,220,50,${b.life * 0.9})`);
+            ctx.beginPath();
+            for (let t = 0; t <= 1; t += 0.1) {
+              const tx = -trailLen * t;
+              const ty = Math.sin(t * Math.PI * 3 + b.dist * 0.3) * (isRpg ? 3 : 5) * t;
+              t === 0 ? ctx.moveTo(tx, ty) : ctx.lineTo(tx, ty);
+            }
+            ctx.lineWidth = isRpg ? 6 : 9;
+            ctx.strokeStyle = trailGrd; ctx.lineCap = 'round'; ctx.stroke();
+            const bodyLen = isRpg ? 22 : 30;
+            const bodyH   = isRpg ? 5  : 8;
+            ctx.fillStyle = isRpg ? '#555' : '#8B4513';
+            ctx.beginPath(); ctx.roundRect(-bodyLen*0.6, -bodyH/2, bodyLen, bodyH, bodyH*0.3); ctx.fill();
+            ctx.fillStyle = isRpg ? '#777' : '#a0522d';
+            ctx.beginPath(); ctx.roundRect(-bodyLen*0.6, -bodyH/2, bodyLen*0.7, bodyH*0.5, 2); ctx.fill();
+            ctx.fillStyle = isRpg ? '#cc3300' : '#cc6600';
+            ctx.beginPath();
+            const noseX = bodyLen * 0.4;
+            ctx.moveTo(noseX, 0); ctx.lineTo(noseX - bodyLen*0.3, -bodyH/2);
+            ctx.lineTo(noseX - bodyLen*0.3, bodyH/2); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = isRpg ? '#333' : '#5a2d0c';
+            const finX = -bodyLen * 0.55;
+            [[-bodyH, -bodyH*1.6],[bodyH*0.1, bodyH*1.6]].forEach(([y1, y2]) => {
+              ctx.beginPath(); ctx.moveTo(finX, y1); ctx.lineTo(finX - bodyLen*0.25, y2);
+              ctx.lineTo(finX + bodyLen*0.15, y1); ctx.closePath(); ctx.fill();
+            });
+          }
 
-          // Blast radius ring (faint dashed)
-          ctx.beginPath();
-          ctx.arc(0, 0, b.blastRadius, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(255,100,0,0.07)`;
-          ctx.lineWidth = 1;
-          ctx.setLineDash([5, 8]);
-          ctx.stroke();
-          ctx.setLineDash([]);
+          // Blast radius ring (faint dashed) — always shown
+          ctx.beginPath(); ctx.arc(0, 0, b.blastRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = isShark ? `rgba(0,150,255,0.1)` : `rgba(255,100,0,0.07)`;
+          ctx.lineWidth = 1; ctx.setLineDash([5, 8]); ctx.stroke(); ctx.setLineDash([]);
           ctx.restore();
 
         } else if (b.bomb) {
@@ -2126,14 +2765,27 @@
     let monsterSpawnTimer = 0;
     const SPAWN_INTERVAL = 120; // base; overridden by SPAWN_INTERVAL_CURRENT
 
-    // Wave tier → zombie shape: 1=blob, 2=skull, 3=spider, 4=phantom, 5=demon, 6+=abomination
+    // Per-run random enemy variant (0-5) for color palette variety
+    const runEnemyVariant = Math.floor(Math.random() * 6);
+
+    // Wave tier → zombie shape: theme-aware
     function waveShape() {
       const t = Math.min(wave.number, 6);
+      if (activeTheme === 'sonic') {
+        return ['eggbot','eggbot','eggbot','eggbot2','eggbot3','eggman_mini','eggman_mech'][t];
+      }
+      if (activeTheme === 'backrooms') {
+        return ['wanderer','wanderer','wanderer','smiler','skin_stealer','partygoer','entity'][t];
+      }
+      if (activeTheme === 'minecraft') {
+        return ['zombie','zombie','skeleton','creeper','spider_mc','enderman','wither'][t];
+      }
       return ['blob','blob','skull','spider','phantom','demon','abomination'][t];
     }
 
     function spawnMonster() {
       if (wave.phase !== 'fighting') return;
+      if (monsters.filter(m => !m.boss).length >= 12) return;
       const y = 60 + Math.random() * (canvas.height - 120);
       const isGolden = Math.random() < 0.25;
       // Colors get darker/sicker each wave tier
@@ -2147,7 +2799,7 @@
       ];
       const tier = Math.min(wave.number - 1, 5);
       const pallete = tierCols[tier];
-      const color = isGolden ? '#d4a017' : pallete[Math.floor(Math.random() * pallete.length)];
+      const color = isGolden ? '#d4a017' : pallete[(Math.floor(Math.random() * pallete.length) + runEnemyVariant) % pallete.length];
       const baseHp = isGolden ? 2 : 1;
       const shape = waveShape();
       monsters.push({
@@ -2176,6 +2828,17 @@
         hp, maxHp: hp,
         golden: false, boss: true, hitFlash: 0, shape,
       });
+    }
+
+    function getBossName() {
+      if (activeTheme === 'sonic') return 'DR. EGGMAN';
+      if (activeTheme === 'backrooms') return 'THE ENTITY';
+      if (activeTheme === 'minecraft') {
+        const names = ['ZOMBIE KING','SKELETON LORD','CREEPER PRIME','SPIDER QUEEN','ENDERMAN KING','WITHER','WITHER'];
+        return names[Math.min(wave.number - 1, names.length - 1)];
+      }
+      const names = ['BLOB BOSS','SKULL BOSS','SPIDER BOSS','PHANTOM BOSS','DEMON BOSS','ABOMINATION'];
+      return names[Math.min(wave.number - 1, names.length - 1)];
     }
 
     function updateMonsters(dt) {
@@ -2340,6 +3003,474 @@
           ctx.beginPath(); ctx.ellipse(dx*m.r,m.r*0.7+drip,m.r*0.07,m.r*0.2,0,0,Math.PI*2); ctx.fill();
         });
 
+      } else if (shape === 'eggbot' || shape === 'eggbot2' || shape === 'eggbot3') {
+        // Eggman robot — gray round body, red visor, robot arms
+        const tier = shape === 'eggbot3' ? 2 : shape === 'eggbot2' ? 1 : 0;
+        ctx.beginPath(); ctx.ellipse(0, 0, m.r, m.r * 1.1, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? c1 : '#8a8a8a'; ctx.fill();
+        ctx.strokeStyle = '#444'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Belly panel
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.2, m.r*0.55, m.r*0.55, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#ddd' : '#ccc'; ctx.fill();
+        // Red visor
+        ctx.beginPath(); ctx.roundRect(-m.r*0.5, -m.r*0.35, m.r, m.r*0.28, 4);
+        ctx.fillStyle = f>0 ? '#fff' : '#cc1111'; ctx.fill();
+        // Eye dot(s) in visor
+        ctx.fillStyle = f>0 ? '#aaa' : '#ffcc00';
+        ctx.beginPath(); ctx.arc(0, -m.r*0.22, m.r*0.1, 0, Math.PI*2); ctx.fill();
+        if (tier > 0) { ctx.beginPath(); ctx.arc(-m.r*0.25, -m.r*0.22, m.r*0.1, 0, Math.PI*2); ctx.fill(); }
+        if (tier > 1) { ctx.beginPath(); ctx.arc( m.r*0.25, -m.r*0.22, m.r*0.1, 0, Math.PI*2); ctx.fill(); }
+        // Robot arms
+        ctx.strokeStyle = f>0 ? '#ddd' : '#777'; ctx.lineWidth = m.r*0.22; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.85, 0); ctx.lineTo(-m.r*1.4, -m.r*0.3 + lw*m.r*0.4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.85, 0); ctx.lineTo( m.r*1.4, -m.r*0.3 + rw*m.r*0.4); ctx.stroke();
+        // Claws
+        ctx.fillStyle = f>0 ? '#ddd' : '#555';
+        ctx.beginPath(); ctx.arc(-m.r*1.4, -m.r*0.3 + lw*m.r*0.4, m.r*0.18, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*1.4, -m.r*0.3 + rw*m.r*0.4, m.r*0.18, 0, Math.PI*2); ctx.fill();
+
+      } else if (shape === 'eggman_mini') {
+        // Mini Eggman in a pod — egg body, red coat visible, mustache
+        ctx.beginPath(); ctx.ellipse(0, 0, m.r*0.85, m.r, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#fff' : '#d4230a'; ctx.fill(); ctx.strokeStyle='#880000'; ctx.lineWidth=1.5; ctx.stroke();
+        // Belly
+        ctx.beginPath(); ctx.ellipse(0, m.r*0.3, m.r*0.55, m.r*0.48, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#ddd' : '#f0c0a0'; ctx.fill();
+        // Eyes
+        ctx.fillStyle='#111';
+        ctx.beginPath(); ctx.arc(-m.r*0.25, -m.r*0.25, m.r*0.13, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.25, -m.r*0.25, m.r*0.13, 0, Math.PI*2); ctx.fill();
+        // Mustache
+        ctx.strokeStyle = f>0 ? '#aaa' : '#f5f5dc'; ctx.lineWidth = m.r*0.1; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.05, m.r*0.05); ctx.bezierCurveTo(-m.r*0.35, m.r*0.25, -m.r*0.6, m.r*0.1, -m.r*0.55, -m.r*0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.05, m.r*0.05); ctx.bezierCurveTo( m.r*0.35, m.r*0.25,  m.r*0.6, m.r*0.1,  m.r*0.55, -m.r*0.1); ctx.stroke();
+        // Pod halo ring
+        ctx.beginPath(); ctx.arc(0, 0, m.r*1.15, 0, Math.PI*2);
+        ctx.strokeStyle = f>0 ? 'rgba(255,200,200,0.5)' : 'rgba(100,200,255,0.4)'; ctx.lineWidth=3; ctx.stroke();
+
+      } else if (shape === 'eggman_mech') {
+        // Giant Eggman mech — huge oval walker body, cockpit, robot legs
+        const pulse = 0.6 + 0.4*Math.sin(m.bobAngle*2);
+        // Mech glow
+        const mechGlow = ctx.createRadialGradient(0,0,m.r*0.3,0,0,m.r*1.8);
+        mechGlow.addColorStop(0,`rgba(200,50,50,${pulse*0.2})`); mechGlow.addColorStop(1,'transparent');
+        ctx.beginPath(); ctx.arc(0,0,m.r*1.8,0,Math.PI*2); ctx.fillStyle=mechGlow; ctx.fill();
+        // Mech body
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.15, m.r*1.05, m.r*1.1, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#ddd' : '#666'; ctx.fill(); ctx.strokeStyle='#333'; ctx.lineWidth=2.5; ctx.stroke();
+        // Cockpit glass dome
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.35, m.r*0.55, m.r*0.52, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? 'rgba(255,255,255,0.6)' : `rgba(100,200,255,${0.35+pulse*0.2})`; ctx.fill();
+        ctx.strokeStyle='#44aaff'; ctx.lineWidth=2; ctx.stroke();
+        // Eggman silhouette inside cockpit
+        ctx.fillStyle = f>0 ? '#aaa' : '#d4230a';
+        ctx.beginPath(); ctx.ellipse(0, -m.r*0.35, m.r*0.25, m.r*0.3, 0, 0, Math.PI*2); ctx.fill();
+        // Mustache dots
+        ctx.fillStyle = '#f5f5dc';
+        ctx.beginPath(); ctx.arc(-m.r*0.12, -m.r*0.28, m.r*0.05, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc( m.r*0.12, -m.r*0.28, m.r*0.05, 0, Math.PI*2); ctx.fill();
+        // Mech robot legs
+        const legSwing = Math.sin(m.bobAngle*1.5)*0.3;
+        ctx.strokeStyle = f>0 ? '#ccc' : '#555'; ctx.lineWidth = m.r*0.32; ctx.lineCap='round';
+        ctx.save(); ctx.translate(-m.r*0.45, m.r*0.8); ctx.rotate(-legSwing-0.2);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-m.r*0.2, m.r*0.7); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.translate( m.r*0.45, m.r*0.8); ctx.rotate( legSwing+0.2);
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo( m.r*0.2, m.r*0.7); ctx.stroke(); ctx.restore();
+        // Shoulder cannons
+        ctx.fillStyle = f>0 ? '#bbb' : '#444';
+        ctx.beginPath(); ctx.roundRect(-m.r*1.3, -m.r*0.5, m.r*0.55, m.r*0.28, 4); ctx.fill();
+        ctx.beginPath(); ctx.roundRect( m.r*0.75, -m.r*0.5, m.r*0.55, m.r*0.28, 4); ctx.fill();
+
+      } else if (shape === 'wanderer') {
+        // ===== THE WANDERER — terrifying elongated stickman, backward joints =====
+        if (f<=0) {
+          const wAura=ctx.createRadialGradient(0,-m.r*0.5,m.r*0.1,0,-m.r*0.5,m.r*2.4);
+          wAura.addColorStop(0,'rgba(30,40,10,0.4)'); wAura.addColorStop(1,'transparent');
+          ctx.beginPath(); ctx.arc(0,-m.r*0.5,m.r*2.4,0,Math.PI*2); ctx.fillStyle=wAura; ctx.fill();
+        }
+        ctx.lineCap='round'; ctx.lineJoin='round';
+        const wCol = f>0?'#bbb':'#0a0a0e';
+        const wThin = f>0?'#999':'#16161e';
+        // Legs — knees bending BACKWARD (horrifying wrong direction)
+        ctx.strokeStyle=wCol; ctx.lineWidth=m.r*0.14;
+        ctx.beginPath(); ctx.moveTo(-m.r*0.18,m.r*0.6); ctx.lineTo(-m.r*0.38,m.r*1.5+lw*m.r*0.2); ctx.lineTo(-m.r*0.08,m.r*2.2+lw*m.r*0.1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.18,m.r*0.6); ctx.lineTo( m.r*0.38,m.r*1.5+rw*m.r*0.2); ctx.lineTo( m.r*0.08,m.r*2.2+rw*m.r*0.1); ctx.stroke();
+        // Torso — impossibly thin spine
+        ctx.strokeStyle=wCol; ctx.lineWidth=m.r*0.16;
+        ctx.beginPath(); ctx.moveTo(0,m.r*0.6); ctx.lineTo(0,-m.r*0.75); ctx.stroke();
+        // Arms — grotesquely long, dragging near floor, elbows also wrong
+        ctx.strokeStyle=wCol; ctx.lineWidth=m.r*0.11;
+        ctx.beginPath(); ctx.moveTo(-m.r*0.12,-m.r*0.45); ctx.lineTo(-m.r*0.9,-m.r*0.05+lw*m.r*0.3); ctx.lineTo(-m.r*0.72,m.r*1.7+lw*m.r*0.35); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.12,-m.r*0.45); ctx.lineTo( m.r*0.9,-m.r*0.05+rw*m.r*0.3); ctx.lineTo( m.r*0.72,m.r*1.7+rw*m.r*0.35); ctx.stroke();
+        // Elongated fingers — 4 per hand, too long
+        [-0.72,0.72].forEach((side,si)=>{
+          const hx=side*m.r, hy=m.r*1.7+(si===0?lw:rw)*m.r*0.35;
+          ctx.strokeStyle=wThin; ctx.lineWidth=m.r*0.06;
+          for(let fi=0;fi<4;fi++){
+            const fa=-0.3+fi*0.22;
+            ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(hx+Math.cos(Math.PI*0.5+fa)*m.r*0.62,hy+Math.sin(Math.PI*0.5+fa)*m.r*0.62); ctx.stroke();
+          }
+        });
+        // Neck — too long, tilts wrong
+        ctx.strokeStyle=wCol; ctx.lineWidth=m.r*0.13;
+        ctx.beginPath(); ctx.moveTo(0,-m.r*0.75); ctx.lineTo(m.r*0.08,-m.r*1.5); ctx.stroke();
+        // Head — small, featureless, barely visible
+        ctx.beginPath(); ctx.ellipse(m.r*0.08,-m.r*1.78,m.r*0.26,m.r*0.34,0.1,0,Math.PI*2);
+        ctx.fillStyle=f>0?'#bbb':'#0e0e12'; ctx.fill();
+        ctx.strokeStyle=f>0?'#999':'#1c1c24'; ctx.lineWidth=1; ctx.stroke();
+        // Eyes — asymmetric, sickly yellow-green, too low on the head
+        const weyA=0.65+0.35*Math.sin(m.bobAngle*2.6);
+        ctx.fillStyle=f>0?'#fff':`rgba(195,228,30,${weyA})`;
+        ctx.beginPath(); ctx.arc(m.r*0.0,-m.r*1.7,m.r*0.095,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(m.r*0.19,-m.r*1.67,m.r*0.058,0,Math.PI*2); ctx.fill();
+        // Pupils — pinhole black
+        ctx.fillStyle='#000';
+        ctx.beginPath(); ctx.arc(m.r*0.0,-m.r*1.7,m.r*0.04,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(m.r*0.19,-m.r*1.67,m.r*0.024,0,Math.PI*2); ctx.fill();
+        // Joint nodes — unsettling dark circles at every joint
+        if(f<=0){
+          ctx.fillStyle='rgba(8,8,12,0.95)';
+          [[0,m.r*0.6],[0,-m.r*0.75],[m.r*0.08,-m.r*1.5],[-m.r*0.38,m.r*1.5],[m.r*0.38,m.r*1.5],[-m.r*0.9,-m.r*0.05],[m.r*0.9,-m.r*0.05]].forEach(([jx,jy])=>{
+            ctx.beginPath(); ctx.arc(jx,jy,m.r*0.07,0,Math.PI*2); ctx.fill();
+          });
+        }
+
+      } else if (shape === 'smiler') {
+        // ===== THE SMILER — absolute darkness with impossibly white teeth =====
+        // Near-black void body
+        const smBase=ctx.createRadialGradient(0,0,m.r*0.04,0,0,m.r*2.1);
+        smBase.addColorStop(0,f>0?'rgba(55,55,55,0.98)':'rgba(0,0,0,0.99)');
+        smBase.addColorStop(0.5,f>0?'rgba(35,35,35,0.85)':'rgba(1,1,3,0.88)');
+        smBase.addColorStop(1,'transparent');
+        ctx.beginPath(); ctx.arc(0,0,m.r*2.1,0,Math.PI*2); ctx.fillStyle=smBase; ctx.fill();
+        // Gaping jaw void
+        const smT=m.bobAngle;
+        const smileW=m.r*1.0;
+        if(f<=0){
+          ctx.beginPath();
+          ctx.moveTo(-smileW*0.92,m.r*0.06);
+          ctx.quadraticCurveTo(0,m.r*0.82,smileW*0.92,m.r*0.06);
+          ctx.lineTo(smileW*0.92,m.r*0.32);
+          ctx.quadraticCurveTo(0,m.r*(1.0+0.14*Math.sin(smT*1.8)),-smileW*0.92,m.r*0.32);
+          ctx.closePath(); ctx.fillStyle='rgba(0,0,0,1)'; ctx.fill();
+        }
+        // UPPER teeth — jagged, uneven, impossibly white
+        const smA=0.72+0.28*Math.sin(smT*3.2);
+        ctx.fillStyle=`rgba(255,255,253,${f>0?0.45:smA})`;
+        for(let t=0;t<10;t++){
+          const tFrac=t/9;
+          const ta=0.06+tFrac*(Math.PI-0.12);
+          const baseR=smileW*0.99;
+          const toothH=m.r*(0.24+0.14*Math.sin(t*1.9+smT*0.6));
+          const toothW=0.078-0.012*(t%3);
+          ctx.beginPath();
+          ctx.moveTo(baseR*Math.cos(ta-toothW),m.r*0.08+baseR*Math.sin(ta-toothW));
+          ctx.lineTo((baseR-toothH)*Math.cos(ta),m.r*0.08+(baseR-toothH)*Math.sin(ta));
+          ctx.lineTo(baseR*Math.cos(ta+toothW),m.r*0.08+baseR*Math.sin(ta+toothW));
+          ctx.closePath(); ctx.fill();
+        }
+        // LOWER teeth — mirrored
+        ctx.fillStyle=`rgba(242,242,238,${f>0?0.35:smA*0.82})`;
+        for(let t=0;t<9;t++){
+          const tFrac=t/8;
+          const ta=0.10+tFrac*(Math.PI-0.20);
+          const baseR=smileW*0.84;
+          const toothH=m.r*(0.17+0.11*Math.sin(t*2.3+smT*0.8+1.5));
+          ctx.beginPath();
+          ctx.moveTo(baseR*Math.cos(ta-0.065),m.r*0.38+baseR*Math.sin(ta-0.065));
+          ctx.lineTo((baseR+toothH)*Math.cos(ta),m.r*0.38+(baseR+toothH)*Math.sin(ta));
+          ctx.lineTo(baseR*Math.cos(ta+0.065),m.r*0.38+baseR*Math.sin(ta+0.065));
+          ctx.closePath(); ctx.fill();
+        }
+        // Blood-red gum line
+        if(f<=0){
+          ctx.beginPath(); ctx.arc(0,m.r*0.08,smileW*1.0,0.06,Math.PI-0.06);
+          ctx.strokeStyle=`rgba(140,0,0,${smA*0.65})`; ctx.lineWidth=m.r*0.055; ctx.lineCap='round'; ctx.stroke();
+        }
+        // Eyes — only visible as brief reflective flashes
+        if(f<=0){
+          const ef=Math.sin(smT*0.85)>0.82?0.35+0.3*Math.sin(smT*6):0;
+          if(ef>0){
+            ctx.fillStyle=`rgba(255,235,210,${ef})`;
+            ctx.beginPath(); ctx.arc(-m.r*0.3,-m.r*0.5,m.r*0.055,0,Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc( m.r*0.3,-m.r*0.5,m.r*0.055,0,Math.PI*2); ctx.fill();
+          }
+        }
+
+      } else if (shape === 'skin_stealer' || shape === 'partygoer') {
+        // ===== SKIN STEALER / PARTYGOER — uncanny valley body horror =====
+        const isParty=shape==='partygoer';
+        const skinCol=f>0?'#ddd':(isParty?'#c4a870':'#cdb890');
+        const darkSkin=f>0?'#bbb':(isParty?'#9a7040':'#a08060');
+        // Legs — slightly too long
+        ctx.strokeStyle=f>0?'#ccc':darkSkin; ctx.lineWidth=m.r*0.25; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.22,m.r*0.72); ctx.lineTo(-m.r*0.28,m.r*1.95+lw*m.r*0.14); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.22,m.r*0.72); ctx.lineTo( m.r*0.28,m.r*1.95+rw*m.r*0.14); ctx.stroke();
+        // Torso — narrow, ribs visible
+        ctx.beginPath(); ctx.ellipse(0,0,m.r*0.52,m.r*0.8,0,0,Math.PI*2);
+        ctx.fillStyle=skinCol; ctx.fill();
+        ctx.strokeStyle=f>0?'rgba(0,0,0,0.18)':'rgba(0,0,0,0.38)'; ctx.lineWidth=1; ctx.stroke();
+        if(f<=0){
+          ctx.strokeStyle='rgba(0,0,0,0.16)'; ctx.lineWidth=0.7;
+          for(let ri=0;ri<5;ri++){ const ry=(-m.r*0.52)+ri*m.r*0.26; ctx.beginPath(); ctx.moveTo(-m.r*0.48,ry); ctx.lineTo(m.r*0.48,ry); ctx.stroke(); }
+        }
+        // Arms — too long, hanging wrong
+        ctx.strokeStyle=f>0?'#ccc':skinCol; ctx.lineWidth=m.r*0.21; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.48,-m.r*0.3); ctx.lineTo(-m.r*0.88,m.r*0.52+lw*m.r*0.18); ctx.lineTo(-m.r*0.72,m.r*1.38+lw*m.r*0.18); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.48,-m.r*0.3); ctx.lineTo( m.r*0.88,m.r*0.52+rw*m.r*0.18); ctx.lineTo( m.r*0.72,m.r*1.38+rw*m.r*0.18); ctx.stroke();
+        // Neck
+        ctx.strokeStyle=f>0?'#ccc':skinCol; ctx.lineWidth=m.r*0.17;
+        ctx.beginPath(); ctx.moveTo(0,-m.r*0.78); ctx.lineTo(0,-m.r*1.18); ctx.stroke();
+        // Head
+        ctx.beginPath(); ctx.ellipse(0,-m.r*1.52,m.r*0.48,m.r*0.5,0,0,Math.PI*2);
+        ctx.fillStyle=skinCol; ctx.fill();
+        ctx.strokeStyle=f>0?'rgba(0,0,0,0.18)':'rgba(0,0,0,0.32)'; ctx.lineWidth=1; ctx.stroke();
+        // Party hat (wrong — tilted, too tall)
+        if(isParty){
+          ctx.save(); ctx.translate(0,-m.r*2.05); ctx.rotate(0.2);
+          ctx.fillStyle=f>0?'#ff88cc':'#ff1155';
+          ctx.beginPath(); ctx.moveTo(-m.r*0.3,0); ctx.lineTo(0,-m.r*1.15); ctx.lineTo(m.r*0.3,0); ctx.closePath(); ctx.fill();
+          if(f<=0){[[0,-m.r*0.38],[m.r*0.11,-m.r*0.18],[-m.r*0.11,-m.r*0.72]].forEach(([dx,dy])=>{
+            ctx.beginPath(); ctx.arc(dx,dy,m.r*0.058,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fill();
+          });}
+          ctx.restore();
+        }
+        // 3 eyes — unevenly placed, one wrong location
+        const eyeSet=isParty?[[-m.r*0.21,-m.r*1.62],[m.r*0.17,-m.r*1.57],[m.r*0.01,-m.r*1.82]]:[[-m.r*0.19,-m.r*1.58],[m.r*0.19,-m.r*1.53],[m.r*0.01,-m.r*1.8]];
+        eyeSet.forEach(([ex,ey],ei)=>{
+          ctx.beginPath(); ctx.ellipse(ex,ey,m.r*0.105,m.r*0.125,0,0,Math.PI*2);
+          ctx.fillStyle=f>0?'#eee':'#fff'; ctx.fill();
+          ctx.beginPath(); ctx.ellipse(ex,ey,m.r*0.062,m.r*0.076,0,0,Math.PI*2);
+          ctx.fillStyle=f>0?'#888':(isParty?'#cc3800':'#1e0028'); ctx.fill();
+          ctx.beginPath(); ctx.arc(ex,ey,m.r*0.032,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill();
+          if(ei===2&&f<=0){ // black tears from wrong eye
+            ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=m.r*0.038; ctx.lineCap='round';
+            ctx.beginPath(); ctx.moveTo(ex,ey+m.r*0.12); ctx.lineTo(ex-m.r*0.04,ey+m.r*0.46); ctx.stroke();
+          }
+        });
+        // Mouth — too wide, lipless, too many teeth
+        ctx.beginPath();
+        ctx.moveTo(-m.r*0.4,-m.r*1.32); ctx.quadraticCurveTo(0,-m.r*1.17+Math.sin(m.bobAngle*2)*m.r*0.055,m.r*0.4,-m.r*1.32);
+        ctx.strokeStyle=f>0?'rgba(0,0,0,0.45)':'rgba(0,0,0,0.72)'; ctx.lineWidth=m.r*0.055; ctx.lineCap='round'; ctx.stroke();
+        if(f<=0){
+          ctx.fillStyle='rgba(228,223,216,0.9)';
+          for(let tt=0;tt<11;tt++){const tx=-m.r*0.37+tt*m.r*0.074; ctx.beginPath(); ctx.rect(tx,-m.r*1.35,m.r*0.066,m.r*0.088); ctx.fill();}
+        }
+
+      } else if (shape === 'entity') {
+        // ===== THE ENTITY — screen-consuming void, dozens of eyes, massive maw =====
+        const eT=m.bobAngle;
+        const ePulse=0.48+0.52*Math.sin(eT*2.1);
+        // Outermost darkness bleeds into scene
+        const eOuter=ctx.createRadialGradient(0,0,m.r*0.35,0,0,m.r*3.5);
+        eOuter.addColorStop(0,'rgba(0,0,0,0)');
+        eOuter.addColorStop(0.28,'rgba(0,0,0,0.38)');
+        eOuter.addColorStop(0.65,'rgba(0,0,0,0.72)');
+        eOuter.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.beginPath(); ctx.arc(0,0,m.r*3.5,0,Math.PI*2); ctx.fillStyle=eOuter; ctx.fill();
+        // Core jagged body
+        ctx.beginPath();
+        for(let ang=0;ang<Math.PI*2;ang+=Math.PI/18){
+          const n=Math.sin(ang*5+eT*2.0)*0.26+Math.sin(ang*3.2-eT*1.6)*0.17+Math.sin(ang*7.5+eT*0.85)*0.11;
+          const rr=m.r*(1.04+n);
+          ang===0?ctx.moveTo(Math.cos(ang)*rr,Math.sin(ang)*rr):ctx.lineTo(Math.cos(ang)*rr,Math.sin(ang)*rr);
+        }
+        ctx.closePath();
+        const eCore=ctx.createRadialGradient(0,0,m.r*0.08,0,0,m.r*1.15);
+        eCore.addColorStop(0,f>0?'rgba(35,35,35,1)':'rgba(0,0,0,1)');
+        eCore.addColorStop(0.72,f>0?'rgba(22,22,22,0.97)':'rgba(2,0,4,0.97)');
+        eCore.addColorStop(1,'transparent');
+        ctx.fillStyle=eCore; ctx.fill();
+        // 8 TENTACLES — writhing outward
+        ctx.lineCap='round';
+        for(let t=0;t<8;t++){
+          const ta=(t/8)*Math.PI*2+eT*0.28;
+          const w1=Math.sin(eT*1.5+t*0.85)*0.38;
+          const w2=Math.sin(eT*2.2+t*1.4)*0.28;
+          const l1=m.r*(1.22+Math.sin(eT+t)*0.14);
+          const l2=m.r*(1.88+Math.cos(eT*0.88+t)*0.19);
+          const l3=m.r*(2.55+Math.sin(eT*1.05+t*0.55)*0.22);
+          const p2x=Math.cos(ta+w1)*l2, p2y=Math.sin(ta+w1)*l2;
+          const p3x=Math.cos(ta+w1+w2)*l3, p3y=Math.sin(ta+w1+w2)*l3;
+          ctx.strokeStyle=f>0?'rgba(50,50,50,0.88)':'rgba(1,0,3,0.9)'; ctx.lineWidth=m.r*(0.19-t*0.004);
+          ctx.beginPath(); ctx.moveTo(Math.cos(ta)*l1,Math.sin(ta)*l1); ctx.quadraticCurveTo(p2x,p2y,p3x,p3y); ctx.stroke();
+          ctx.fillStyle=f>0?'#444':'rgba(15,0,22,0.92)';
+          ctx.beginPath(); ctx.arc(p3x,p3y,m.r*0.075,0,Math.PI*2); ctx.fill();
+        }
+        // 20 EYES — all different colors, scattered densely, all glowing
+        const eyeGrid=[
+          [-.54,-.46],[.50,-.40],[.0,-.60],[-.30,.12],[.28,.16],[-.60,.0],[.56,.04],[.0,.40],
+          [-.26,-.26],[.24,-.30],[-.42,.36],[.38,.33],[.10,-.48],[-.14,-.20],[.16,-.02],
+          [-.34,-.52],[.36,-.48],[-.06,.26],[.52,.26],[-.56,.20],
+        ];
+        const irisC=['rgba(255,50,0','rgba(200,0,255','rgba(0,255,90','rgba(255,195,0','rgba(0,90,255'];
+        eyeGrid.forEach(([ex,ey],i)=>{
+          const ea=0.28+0.72*Math.abs(Math.sin(eT*3.1+i*1.6));
+          const er=m.r*(0.068+0.038*Math.sin(eT*1.9+i));
+          ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,er,0,Math.PI*2);
+          ctx.fillStyle=f>0?`rgba(170,170,170,${ea})`:`rgba(255,238,170,${ea})`; ctx.fill();
+          ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,er*0.6,0,Math.PI*2);
+          ctx.fillStyle=f>0?'#777':`${irisC[i%5]},${ea})`; ctx.fill();
+          ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,er*0.27,0,Math.PI*2); ctx.fillStyle='rgba(0,0,0,0.99)'; ctx.fill();
+          if(f<=0&&ea>0.45){
+            const eg=ctx.createRadialGradient(ex*m.r,ey*m.r,er*0.45,ex*m.r,ey*m.r,er*2.4);
+            eg.addColorStop(0,`${irisC[i%5]},${ea*0.32})`); eg.addColorStop(1,'transparent');
+            ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,er*2.4,0,Math.PI*2); ctx.fillStyle=eg; ctx.fill();
+          }
+        });
+        // MASSIVE FISSURE MOUTH — splits the lower body
+        if(f<=0){
+          const mo=0.11+0.09*Math.sin(eT*1.75);
+          ctx.beginPath();
+          ctx.moveTo(-m.r*0.72,m.r*mo);
+          ctx.quadraticCurveTo(0,m.r*(mo*2.2+0.2),m.r*0.72,m.r*mo);
+          ctx.quadraticCurveTo(0,-m.r*mo*0.35,-m.r*0.72,m.r*mo);
+          ctx.fillStyle='rgba(0,0,0,1)'; ctx.fill();
+          // Teeth lining
+          ctx.fillStyle='rgba(218,213,208,0.94)';
+          for(let tt=0;tt<14;tt++){
+            const tx=-m.r*0.67+tt*m.r*0.1;
+            const ty=m.r*mo-m.r*0.038;
+            ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx+m.r*0.046,-ty*0.32); ctx.lineTo(tx+m.r*0.092,ty); ctx.closePath(); ctx.fill();
+          }
+          // Red throat glow deep inside
+          const throat=ctx.createRadialGradient(0,m.r*(mo*1.4+0.1),0,0,m.r*(mo*1.4+0.1),m.r*0.45);
+          throat.addColorStop(0,`rgba(160,0,0,${0.4*ePulse})`); throat.addColorStop(1,'transparent');
+          ctx.beginPath(); ctx.arc(0,m.r*(mo*1.4+0.1),m.r*0.45,0,Math.PI*2); ctx.fillStyle=throat; ctx.fill();
+        }
+
+      } else if (shape === 'zombie') {
+        // Minecraft zombie — green blocky head/body, outstretched arms
+        ctx.fillStyle = f>0 ? '#9aff9a' : '#4a7a3a';
+        ctx.beginPath(); ctx.rect(-m.r*0.65, -m.r*0.9, m.r*1.3, m.r*1.8); ctx.fill();
+        ctx.strokeStyle='#2a4a1a'; ctx.lineWidth=1.5; ctx.stroke();
+        // Head
+        ctx.fillStyle = f>0 ? '#bfffbf' : '#5a9a4a';
+        ctx.beginPath(); ctx.rect(-m.r*0.6, -m.r*1.85, m.r*1.2, m.r*1.05); ctx.fill();
+        ctx.strokeStyle='#2a4a1a'; ctx.lineWidth=1.5; ctx.stroke();
+        // Pixel eyes
+        ctx.fillStyle='#111';
+        ctx.beginPath(); ctx.rect(-m.r*0.38,-m.r*1.55, m.r*0.3, m.r*0.3); ctx.fill();
+        ctx.beginPath(); ctx.rect( m.r*0.08,-m.r*1.55, m.r*0.3, m.r*0.3); ctx.fill();
+        // Purple shirt strip
+        ctx.fillStyle = f>0 ? '#d0b0ff' : '#7744aa';
+        ctx.beginPath(); ctx.rect(-m.r*0.65, -m.r*0.2, m.r*1.3, m.r*0.45); ctx.fill();
+        // Outstretched arms
+        const armRaise = Math.sin(m.bobAngle * 1.5) * 0.15;
+        ctx.fillStyle = f>0 ? '#9aff9a' : '#4a7a3a';
+        ctx.save(); ctx.translate(-m.r*0.9, -m.r*0.4); ctx.rotate(-0.3 - armRaise);
+        ctx.beginPath(); ctx.rect(-m.r*0.3, 0, m.r*0.6, m.r*0.8); ctx.fill(); ctx.strokeStyle='#2a4a1a'; ctx.lineWidth=1; ctx.stroke();
+        ctx.restore();
+        ctx.save(); ctx.translate( m.r*0.9, -m.r*0.4); ctx.rotate(0.3 + armRaise);
+        ctx.beginPath(); ctx.rect(-m.r*0.3, 0, m.r*0.6, m.r*0.8); ctx.fill(); ctx.strokeStyle='#2a4a1a'; ctx.lineWidth=1; ctx.stroke();
+        ctx.restore();
+
+      } else if (shape === 'skeleton') {
+        // Minecraft skeleton — off-white blocky body, dark eye sockets
+        ctx.fillStyle = f>0 ? '#fff' : '#d4d4c0';
+        ctx.beginPath(); ctx.rect(-m.r*0.5, -m.r*0.85, m.r, m.r*1.7); ctx.fill();
+        ctx.strokeStyle='#888'; ctx.lineWidth=1.2; ctx.stroke();
+        // Head
+        ctx.beginPath(); ctx.rect(-m.r*0.55, -m.r*1.85, m.r*1.1, m.r*1.1); ctx.fill(); ctx.stroke();
+        // Eye sockets
+        ctx.fillStyle='#222';
+        ctx.beginPath(); ctx.rect(-m.r*0.37,-m.r*1.6,m.r*0.28,m.r*0.3); ctx.fill();
+        ctx.beginPath(); ctx.rect( m.r*0.09,-m.r*1.6,m.r*0.28,m.r*0.3); ctx.fill();
+        // Nose hole
+        ctx.beginPath(); ctx.rect(-m.r*0.08,-m.r*1.25,m.r*0.16,m.r*0.18); ctx.fill();
+        // Bow arms (skeleton holds a bow)
+        ctx.strokeStyle = f>0 ? '#ddd' : '#a08040'; ctx.lineWidth=m.r*0.18; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(m.r*0.7,-m.r*0.6); ctx.lineTo(m.r*1.3,m.r*0.3+rw*m.r*0.3); ctx.stroke();
+        ctx.strokeStyle = f>0 ? '#eee' : '#d4d4c0'; ctx.lineWidth=m.r*0.14;
+        ctx.beginPath(); ctx.moveTo(-m.r*0.7,-m.r*0.6); ctx.lineTo(-m.r*1.2,m.r*0.2+lw*m.r*0.3); ctx.stroke();
+
+      } else if (shape === 'creeper') {
+        // Minecraft creeper — green body, iconic 4-square face
+        ctx.fillStyle = f>0 ? '#88ff88' : '#44aa44';
+        ctx.beginPath(); ctx.rect(-m.r*0.6, -m.r*0.85, m.r*1.2, m.r*1.7); ctx.fill();
+        ctx.strokeStyle='#226622'; ctx.lineWidth=1.5; ctx.stroke();
+        // Head
+        ctx.beginPath(); ctx.rect(-m.r*0.65, -m.r*1.9, m.r*1.3, m.r*1.1); ctx.fill(); ctx.stroke();
+        // Creeper face — 4 dark squares
+        ctx.fillStyle='#111';
+        ctx.beginPath(); ctx.rect(-m.r*0.42,-m.r*1.72,m.r*0.28,m.r*0.28); ctx.fill();
+        ctx.beginPath(); ctx.rect( m.r*0.14,-m.r*1.72,m.r*0.28,m.r*0.28); ctx.fill();
+        ctx.beginPath(); ctx.rect(-m.r*0.14,-m.r*1.38,m.r*0.28,m.r*0.38); ctx.fill();
+        ctx.beginPath(); ctx.rect(-m.r*0.42,-m.r*1.38,m.r*0.28,m.r*0.2); ctx.fill();
+        ctx.beginPath(); ctx.rect( m.r*0.14,-m.r*1.38,m.r*0.28,m.r*0.2); ctx.fill();
+        // Tiny legs
+        ctx.fillStyle = f>0 ? '#88ff88' : '#44aa44';
+        ctx.beginPath(); ctx.rect(-m.r*0.5,m.r*0.85,m.r*0.42,m.r*0.6); ctx.fill(); ctx.strokeStyle='#226622'; ctx.lineWidth=1; ctx.stroke();
+        ctx.beginPath(); ctx.rect( m.r*0.08,m.r*0.85,m.r*0.42,m.r*0.6); ctx.fill(); ctx.stroke();
+
+      } else if (shape === 'spider_mc') {
+        // Minecraft spider — dark wide body, 8 red eyes
+        ctx.beginPath(); ctx.ellipse(0, 0, m.r*1.4, m.r*0.65, 0, 0, Math.PI*2);
+        ctx.fillStyle = f>0 ? '#888' : '#333'; ctx.fill();
+        ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke();
+        // Head
+        ctx.beginPath(); ctx.rect(-m.r*0.55, -m.r*0.85, m.r*1.1, m.r*0.9);
+        ctx.fillStyle = f>0 ? '#888' : '#444'; ctx.fill(); ctx.strokeStyle='#111'; ctx.lineWidth=1.5; ctx.stroke();
+        // 8 red eyes
+        const eyePos=[[-0.38,-0.65],[-0.12,-0.65],[0.12,-0.65],[0.38,-0.65],[-0.32,-0.4],[-0.08,-0.4],[0.08,-0.4],[0.32,-0.4]];
+        eyePos.forEach(([ex,ey])=>{
+          ctx.beginPath(); ctx.arc(ex*m.r,ey*m.r,m.r*0.09,0,Math.PI*2);
+          ctx.fillStyle=f>0?'#fff':`rgba(255,0,0,${0.7+0.3*Math.sin(m.bobAngle*5)})`; ctx.fill();
+        });
+        // Spider legs (8)
+        ctx.strokeStyle=f>0?'#aaa':'#2a2a2a'; ctx.lineWidth=m.r*0.14; ctx.lineCap='round';
+        for(let s=0;s<4;s++){
+          const lAngle=-0.6+s*0.4+lw*0.2;
+          ctx.beginPath(); ctx.moveTo(-m.r*1.1,0); ctx.lineTo(-m.r*(1.6+s*0.15),m.r*(0.3+s*0.2)*Math.sin(lAngle+s)); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo( m.r*1.1,0); ctx.lineTo( m.r*(1.6+s*0.15),m.r*(0.3+s*0.2)*Math.sin(rw+s)); ctx.stroke();
+        }
+
+      } else if (shape === 'enderman') {
+        // Minecraft enderman — very tall thin black, purple eyes
+        ctx.fillStyle = f>0 ? '#888' : '#111';
+        ctx.beginPath(); ctx.rect(-m.r*0.32, -m.r*1.9, m.r*0.64, m.r*3.4); ctx.fill();
+        ctx.strokeStyle='#333'; ctx.lineWidth=1.2; ctx.stroke();
+        // Small head
+        ctx.beginPath(); ctx.rect(-m.r*0.55, -m.r*2.35, m.r*1.1, m.r*0.5);
+        ctx.fillStyle=f>0?'#888':'#111'; ctx.fill(); ctx.stroke();
+        // Purple eyes
+        ctx.fillStyle=f>0?'#fff':`rgba(160,0,255,${0.7+0.3*Math.sin(m.bobAngle*3)})`;
+        ctx.beginPath(); ctx.rect(-m.r*0.38,-m.r*2.28,m.r*0.22,m.r*0.16); ctx.fill();
+        ctx.beginPath(); ctx.rect( m.r*0.16,-m.r*2.28,m.r*0.22,m.r*0.16); ctx.fill();
+        // Thin arms
+        ctx.strokeStyle=f>0?'#777':'#111'; ctx.lineWidth=m.r*0.18; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.32,-m.r*0.6); ctx.lineTo(-m.r*(0.9+lw*0.3), m.r*(0.8+lw*0.4)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.32,-m.r*0.6); ctx.lineTo( m.r*(0.9+rw*0.3), m.r*(0.8+rw*0.4)); ctx.stroke();
+        // Block held in hand (enderman holds a block)
+        ctx.fillStyle=f>0?'#aaa':'#777';
+        ctx.beginPath(); ctx.rect(m.r*0.8+rw*0.3*m.r, m.r*0.6+rw*0.4*m.r, m.r*0.35, m.r*0.35); ctx.fill();
+        ctx.strokeStyle='#555'; ctx.lineWidth=1; ctx.stroke();
+
+      } else if (shape === 'wither') {
+        // Minecraft wither — 3-headed dark floating skull structure
+        const pulse = 0.5+0.5*Math.sin(m.bobAngle*2.2);
+        // Dark glow
+        const wGlow=ctx.createRadialGradient(0,0,m.r*0.3,0,0,m.r*2);
+        wGlow.addColorStop(0,`rgba(40,0,60,${pulse*0.35})`); wGlow.addColorStop(1,'transparent');
+        ctx.beginPath(); ctx.arc(0,0,m.r*2,0,Math.PI*2); ctx.fillStyle=wGlow; ctx.fill();
+        // Spine
+        ctx.strokeStyle=f>0?'#888':'#222'; ctx.lineWidth=m.r*0.3; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(0,m.r*0.9); ctx.lineTo(0,-m.r*0.4); ctx.stroke();
+        // 3 heads
+        [[-m.r*0.9, -m.r*0.5],[0,-m.r*0.85],[m.r*0.9,-m.r*0.5]].forEach(([hx,hy],hi)=>{
+          ctx.beginPath(); ctx.rect(hx-m.r*0.38,hy-m.r*0.38,m.r*0.76,m.r*0.76);
+          ctx.fillStyle=f>0?'#888':'#1a1a2a'; ctx.fill(); ctx.strokeStyle='#444'; ctx.lineWidth=1.5; ctx.stroke();
+          // Eyes (center head bigger)
+          const eyeA=hi===1?0.85+0.15*Math.sin(m.bobAngle*3):0.6+0.4*Math.sin(m.bobAngle*3+hi);
+          ctx.fillStyle=f>0?'#fff':`rgba(100,0,200,${eyeA})`;
+          ctx.beginPath(); ctx.rect(hx-m.r*0.18,hy-m.r*0.18,m.r*0.16,m.r*0.16); ctx.fill();
+          ctx.beginPath(); ctx.rect(hx+m.r*0.02,hy-m.r*0.18,m.r*0.16,m.r*0.16); ctx.fill();
+        });
+        // 2 Rib-like arms
+        ctx.strokeStyle=f>0?'#888':'#333'; ctx.lineWidth=m.r*0.22; ctx.lineCap='round';
+        ctx.beginPath(); ctx.moveTo(-m.r*0.15,m.r*0.5); ctx.lineTo(-m.r*1.1,m.r*0.1+lw*m.r*0.4); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo( m.r*0.15,m.r*0.5); ctx.lineTo( m.r*1.1,m.r*0.1+rw*m.r*0.4); ctx.stroke();
+
       } else {
         // Default blob (wave 1)
         const grad = ctx.createRadialGradient(-m.r*0.3,-m.r*0.3,2,0,0,m.r*1.3);
@@ -2500,23 +3631,36 @@
     function applyTheme(code) {
       const c = code.trim().toLowerCase();
       const msgEl = document.getElementById('code-msg');
+      const validThemes = ['sonic','lava','space','backrooms','minecraft','mario','forest'];
       if (c === 'sonic') {
         activeTheme = 'sonic';
-        msgEl.textContent = '✔ SONIC MODE!';
-        msgEl.style.color = '#44aaff';
+        msgEl.textContent = '✔ SONIC MODE!'; msgEl.style.color = '#44aaff';
       } else if (c === 'lava') {
         activeTheme = 'lava';
-        msgEl.textContent = '✔ LAVA WORLD!';
-        msgEl.style.color = '#ff4400';
+        msgEl.textContent = '✔ LAVA WORLD!'; msgEl.style.color = '#ff4400';
       } else if (c === 'space' || c === 'reset') {
         activeTheme = 'space';
-        msgEl.textContent = '✔ SPACE MODE';
-        msgEl.style.color = '#4cff88';
+        msgEl.textContent = '✔ SPACE MODE'; msgEl.style.color = '#4cff88';
+      } else if (c === 'backrooms') {
+        activeTheme = 'backrooms';
+        msgEl.textContent = '✔ BACKROOMS'; msgEl.style.color = '#ccaa55';
+      } else if (c === 'minecraft') {
+        activeTheme = 'minecraft';
+        msgEl.textContent = '✔ MINECRAFT'; msgEl.style.color = '#55cc44';
+      } else if (c === 'mario') {
+        activeTheme = 'mario';
+        msgEl.textContent = '✔ MARIO WORLD!'; msgEl.style.color = '#e52222';
+      } else if (c === 'forest') {
+        activeTheme = 'forest';
+        msgEl.textContent = '✔ 99 NIGHTS IN THE FOREST'; msgEl.style.color = '#44aa22';
       } else {
-        msgEl.textContent = '✘ unknown code';
-        msgEl.style.color = '#e74c3c';
+        msgEl.textContent = '✘ unknown code'; msgEl.style.color = '#e74c3c';
       }
-      setTimeout(() => { msgEl.textContent = ''; }, 2500);
+      if (validThemes.includes(c) || c === 'reset') {
+        setTimeout(() => { msgEl.textContent = ''; }, 2500);
+      } else {
+        setTimeout(() => { msgEl.textContent = ''; }, 1200);
+      }
     }
 
     document.getElementById('code-btn').addEventListener('click', () => {
@@ -2526,6 +3670,14 @@
     document.getElementById('code-input').addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         applyTheme(e.target.value);
+        e.target.value = '';
+      }
+    });
+    document.getElementById('code-input').addEventListener('keyup', e => {
+      const v = e.target.value.trim().toLowerCase();
+      const themes = ['sonic','lava','space','backrooms','minecraft','mario','forest','reset'];
+      if (themes.includes(v)) {
+        applyTheme(v);
         e.target.value = '';
       }
     });
@@ -2586,6 +3738,327 @@
           ctx.beginPath(); ctx.moveTo(0, ry); ctx.lineTo(canvas.width, ry); ctx.stroke();
         }
 
+      } else if (activeTheme === 'backrooms') {
+        const BW = canvas.width, BH = canvas.height;
+        const bcx = BW / 2, bcy = BH / 2;
+
+        // ---- Base: sickly yellowed carpet ----
+        ctx.fillStyle = '#a89438';
+        ctx.fillRect(0, 0, BW, BH);
+
+        // ---- Carpet tile grid ----
+        const tileSize = 52;
+        for (let gx = 0; gx < BW; gx += tileSize) {
+          ctx.strokeStyle = `rgba(60,40,5,${0.12 + 0.18 * Math.abs(Math.sin(gx))})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, BH); ctx.stroke();
+        }
+        for (let gy = 0; gy < BH; gy += tileSize) {
+          ctx.strokeStyle = `rgba(60,40,5,${0.12 + 0.18 * Math.abs(Math.cos(gy))})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(BW, gy); ctx.stroke();
+        }
+
+        // ---- Moisture stains / dark wet patches ----
+        [[0.15,0.35],[0.58,0.68],[0.82,0.22],[0.36,0.82],[0.71,0.52],[0.22,0.58],[0.91,0.42],[0.45,0.15]].forEach(([fx,fy]) => {
+          const sx = fx * BW, sy = fy * BH;
+          const sg = ctx.createRadialGradient(sx, sy, 1, sx, sy, 26 + Math.sin(fx*17)*10);
+          sg.addColorStop(0, 'rgba(25,15,0,0.45)');
+          sg.addColorStop(1, 'transparent');
+          ctx.fillStyle = sg;
+          ctx.beginPath(); ctx.ellipse(sx, sy, 28+Math.sin(fy*13)*8, 18+Math.cos(fx*11)*6, fx*Math.PI, 0, Math.PI*2); ctx.fill();
+        });
+
+        // ---- Perspective corridor — converging lines to vanishing point ----
+        const vpY = BH * 0.4;
+        ctx.lineWidth = 1.2;
+        // Floor lines
+        ctx.strokeStyle = 'rgba(140,115,40,0.5)';
+        for (let i = 0; i <= 7; i++) {
+          const fx = (i / 7) * BW;
+          ctx.beginPath(); ctx.moveTo(fx, BH); ctx.lineTo(bcx, vpY); ctx.stroke();
+        }
+        // Ceiling lines
+        ctx.strokeStyle = 'rgba(170,150,60,0.35)';
+        for (let i = 0; i <= 7; i++) {
+          const fx = (i / 7) * BW;
+          ctx.beginPath(); ctx.moveTo(fx, 0); ctx.lineTo(bcx, vpY); ctx.stroke();
+        }
+        // Side wall outlines
+        ctx.strokeStyle = 'rgba(100,80,20,0.4)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(bcx, vpY); ctx.lineTo(0, BH); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(BW, 0); ctx.lineTo(bcx, vpY); ctx.lineTo(BW, BH); ctx.stroke();
+
+        // ---- Fluorescent lights — three ceiling strips, independent flicker ----
+        const bt = bgScroll;
+        [0.18, 0.5, 0.82].forEach((fx, li) => {
+          const flicker = Math.max(0, 0.5 + 0.5 * Math.sin(bt * 0.25 + li * 2.4) * Math.cos(bt * 0.1 + li * 1.1));
+          const blink = Math.sin(bt * 0.06 + li * 3.8) > 0.91 ? 0 : 1;
+          const la = flicker * blink;
+          const lx2 = fx * BW;
+
+          // Fixture
+          ctx.fillStyle = `rgba(200,200,140,${la * 0.9})`;
+          ctx.beginPath(); ctx.roundRect(lx2 - 52, 0, 104, 13, 2); ctx.fill();
+
+          // Light cone
+          const cg = ctx.createLinearGradient(lx2, 13, lx2, BH * 0.65);
+          cg.addColorStop(0, `rgba(255,255,155,${la * 0.24})`);
+          cg.addColorStop(0.55, `rgba(240,235,110,${la * 0.10})`);
+          cg.addColorStop(1, 'transparent');
+          ctx.beginPath();
+          ctx.moveTo(lx2 - 52, 13); ctx.lineTo(lx2 + 52, 13);
+          ctx.lineTo(lx2 + BW * 0.38, BH * 0.65); ctx.lineTo(lx2 - BW * 0.38, BH * 0.65);
+          ctx.closePath(); ctx.fillStyle = cg; ctx.fill();
+
+          // Ceiling halo
+          const halo = ctx.createRadialGradient(lx2, 7, 1, lx2, 7, 85);
+          halo.addColorStop(0, `rgba(255,255,160,${la * 0.6})`);
+          halo.addColorStop(1, 'transparent');
+          ctx.fillStyle = halo;
+          ctx.beginPath(); ctx.arc(lx2, 7, 85, 0, Math.PI*2); ctx.fill();
+        });
+
+        // ---- Heavy vignette — deep darkness from edges ----
+        const bvg = ctx.createRadialGradient(bcx, bcy, BH * 0.15, bcx, bcy, BH * 1.0);
+        bvg.addColorStop(0, 'transparent');
+        bvg.addColorStop(0.55, 'rgba(0,0,0,0.32)');
+        bvg.addColorStop(1, 'rgba(0,0,0,0.96)');
+        ctx.fillStyle = bvg; ctx.fillRect(0, 0, BW, BH);
+
+        // ---- Pitch-black corners ----
+        [[0,0],[BW,0],[0,BH],[BW,BH]].forEach(([ex,ey]) => {
+          const cg2 = ctx.createRadialGradient(ex, ey, 0, ex, ey, BW * 0.52);
+          cg2.addColorStop(0, 'rgba(0,0,0,0.95)');
+          cg2.addColorStop(0.35, 'rgba(0,0,0,0.6)');
+          cg2.addColorStop(1, 'transparent');
+          ctx.fillStyle = cg2; ctx.fillRect(0, 0, BW, BH);
+        });
+
+        // ---- Film grain / static noise ----
+        ctx.save();
+        ctx.globalAlpha = 0.045 + 0.025 * Math.sin(bt * 1.9);
+        for (let ny = 0; ny < BH; ny += 4) {
+          for (let nx = 0; nx < BW; nx += 4) {
+            if (Math.sin(nx * 14.1 + ny * 7.9 + bt * 37) > 0.58) {
+              ctx.fillStyle = ny % 8 < 4 ? '#ffffcc' : '#888';
+              ctx.fillRect(nx, ny, 2, 2);
+            }
+          }
+        }
+        ctx.restore();
+
+      } else if (activeTheme === 'minecraft') {
+        // Sky
+        ctx.fillStyle = '#78a8ff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height * 0.15);
+        // Dirt/grass main area
+        ctx.fillStyle = '#8B6040';
+        ctx.fillRect(0, canvas.height * 0.15, canvas.width, canvas.height);
+        // Grass strip
+        ctx.fillStyle = '#5a9e2f';
+        ctx.fillRect(0, canvas.height * 0.15, canvas.width, 22);
+        // Block grid overlay
+        const bsz = 48;
+        ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+        ctx.lineWidth = 1.5;
+        for (let gx = 0; gx < canvas.width; gx += bsz) {
+          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, canvas.height); ctx.stroke();
+        }
+        for (let gy = 0; gy < canvas.height; gy += bsz) {
+          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke();
+        }
+        // Scattered stone patches
+        ctx.fillStyle = '#7a7a7a';
+        [[0.2,0.4],[0.5,0.65],[0.75,0.35],[0.1,0.7],[0.85,0.55]].forEach(([fx,fy]) => {
+          ctx.fillRect(Math.floor(fx*canvas.width/bsz)*bsz, Math.floor(fy*canvas.height/bsz)*bsz, bsz, bsz);
+          ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1.5;
+          ctx.strokeRect(Math.floor(fx*canvas.width/bsz)*bsz, Math.floor(fy*canvas.height/bsz)*bsz, bsz, bsz);
+        });
+
+      } else if (activeTheme === 'mario') {
+        // Sky gradient
+        const marioSky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        marioSky.addColorStop(0, '#5c94fc');
+        marioSky.addColorStop(1, '#9bbdff');
+        ctx.fillStyle = marioSky;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const groundY = canvas.height * 0.75;
+        const dirtH = canvas.height - groundY - 40;
+        // Grass strip
+        ctx.fillStyle = '#5aac00';
+        ctx.fillRect(0, groundY, canvas.width, 40);
+        // Dirt strip
+        ctx.fillStyle = '#c84c0c';
+        ctx.fillRect(0, groundY + 40, canvas.width, dirtH);
+        // Brick grid on dirt
+        const bsz = 48;
+        ctx.strokeStyle = 'rgba(100,30,0,0.5)';
+        ctx.lineWidth = 1.5;
+        for (let gx = 0; gx < canvas.width; gx += bsz) {
+          ctx.beginPath(); ctx.moveTo(gx, groundY+40); ctx.lineTo(gx, canvas.height); ctx.stroke();
+        }
+        for (let gy = groundY+40; gy < canvas.height; gy += bsz) {
+          ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke();
+        }
+        // Scrolling hills
+        const hillOffsets = [0.1, 0.45, 0.78];
+        hillOffsets.forEach((fx, i) => {
+          const hx = ((fx * canvas.width - bgScroll * 0.3 * (i+1) * 0.4) % (canvas.width + 200) + canvas.width + 200) % (canvas.width + 200) - 100;
+          const hr = 70 + i * 20;
+          ctx.fillStyle = '#4a9000';
+          ctx.beginPath();
+          ctx.arc(hx, groundY, hr, Math.PI, 0, false);
+          ctx.closePath();
+          ctx.fill();
+          // Lighter top
+          ctx.fillStyle = '#5aac00';
+          ctx.beginPath();
+          ctx.arc(hx, groundY, hr * 0.6, Math.PI, 0, false);
+          ctx.closePath();
+          ctx.fill();
+        });
+        // Scrolling clouds
+        [[0.1,0.12],[0.35,0.08],[0.62,0.15],[0.85,0.1]].forEach(([fx, fy], i) => {
+          const cx2 = ((fx * canvas.width - bgScroll * 0.2 * (i*0.3+0.5)) % (canvas.width+200) + canvas.width+200) % (canvas.width+200) - 100;
+          const cy2 = fy * canvas.height;
+          ctx.fillStyle = 'rgba(255,255,255,0.95)';
+          ctx.beginPath(); ctx.arc(cx2,      cy2,     22, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(cx2+22,   cy2-8,   18, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(cx2+44,   cy2,     22, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(cx2+15,   cy2-18,  16, 0, Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.arc(cx2+30,   cy2-20,  14, 0, Math.PI*2); ctx.fill();
+        });
+        // Floating coins
+        const coinY = canvas.height * 0.55;
+        for (let ci = 0; ci < 6; ci++) {
+          const cx2 = ((ci * 110 + 50 - bgScroll * 0.5) % (canvas.width + 100) + canvas.width + 100) % (canvas.width + 100) - 50;
+          const bob = Math.sin(bgScroll * 0.05 + ci) * 5;
+          ctx.fillStyle = '#ffd700';
+          ctx.beginPath();
+          ctx.arc(cx2, coinY + bob, 10, 0, Math.PI*2);
+          ctx.fill();
+          ctx.strokeStyle = '#c8a000';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.fillStyle = '#c8a000';
+          ctx.font = 'bold 9px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('$', cx2, coinY + bob + 3);
+        }
+        // Question blocks
+        [[0.2, 0.6],[0.5, 0.55],[0.75, 0.62]].forEach(([fx, fy], i) => {
+          const qx = ((fx * canvas.width - bgScroll * 0.4) % (canvas.width+150) + canvas.width+150) % (canvas.width+150) - 75;
+          const qy = fy * canvas.height;
+          ctx.fillStyle = '#f8b800';
+          ctx.fillRect(qx-16, qy-16, 32, 32);
+          ctx.strokeStyle = '#c88000';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(qx-16, qy-16, 32, 32);
+          ctx.fillStyle = '#8B4000';
+          ctx.font = 'bold 18px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('?', qx, qy + 6);
+        });
+        // Green pipes
+        [[0.3, 44],[0.7, 60]].forEach(([fx, pw], i) => {
+          const px = ((fx * canvas.width - bgScroll * 0.6) % (canvas.width+200) + canvas.width+200) % (canvas.width+200) - 100;
+          const py = groundY;
+          const ph = 70 + i*20;
+          // Pipe body
+          ctx.fillStyle = '#3aaa00';
+          ctx.fillRect(px - pw/2, py - ph, pw, ph);
+          ctx.fillStyle = '#2a8800';
+          ctx.fillRect(px - pw/2 + 4, py - ph, 6, ph);
+          // Pipe cap
+          ctx.fillStyle = '#3aaa00';
+          ctx.fillRect(px - pw/2 - 6, py - ph - 14, pw + 12, 14);
+          ctx.fillStyle = '#2a8800';
+          ctx.fillRect(px - pw/2 - 6 + 4, py - ph - 14, 6, 14);
+          ctx.strokeStyle = '#1a6600';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(px - pw/2 - 6, py - ph - 14, pw + 12, 14);
+        });
+
+      } else if (activeTheme === 'forest') {
+        // Sky gradient — dark atmospheric night
+        const forestSky = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        forestSky.addColorStop(0, '#0a1208');
+        forestSky.addColorStop(1, '#0d1f0a');
+        ctx.fillStyle = forestSky;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Moon — upper right
+        const moonX = canvas.width * 0.82, moonY = canvas.height * 0.12;
+        const moonGlow = ctx.createRadialGradient(moonX, moonY, 0, moonX, moonY, 80);
+        moonGlow.addColorStop(0, 'rgba(255,255,200,0.18)');
+        moonGlow.addColorStop(1, 'transparent');
+        ctx.fillStyle = moonGlow;
+        ctx.fillRect(moonX-80, moonY-80, 160, 160);
+        ctx.fillStyle = '#ffffc0';
+        ctx.beginPath(); ctx.arc(moonX, moonY, 34, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ffffd8';
+        ctx.beginPath(); ctx.arc(moonX-8, moonY-8, 26, 0, Math.PI*2); ctx.fill();
+        // Stars — stable positions using seed
+        for (let si = 0; si < 30; si++) {
+          const sx = ((si * 137.5 + 17) % 97) / 97 * canvas.width;
+          const sy = ((si * 73.1 + 5) % 53) / 53 * canvas.height * 0.6;
+          const twink = 0.4 + 0.4 * Math.sin(bgScroll * 0.04 + si * 0.7);
+          ctx.fillStyle = `rgba(220,240,220,${twink.toFixed(2)})`;
+          ctx.beginPath(); ctx.arc(sx, sy, 1.2 + (si%3)*0.4, 0, Math.PI*2); ctx.fill();
+        }
+        // Ground
+        const fGroundY = canvas.height * 0.7;
+        ctx.fillStyle = '#1a1208';
+        ctx.fillRect(0, fGroundY, canvas.width, canvas.height - fGroundY);
+        // Trees — dark silhouettes with slight parallax
+        const treePosX = [0.05,0.18,0.3,0.44,0.56,0.68,0.8,0.92];
+        treePosX.forEach((fx, i) => {
+          const tx = ((fx * canvas.width - bgScroll * 0.1 * (1+(i%3)*0.3)) % (canvas.width+200) + canvas.width+200) % (canvas.width+200) - 100;
+          const th = 100 + (i%3)*40;
+          const tw = 38 + (i%4)*10;
+          const treeCol = i%2===0 ? '#0a1a04' : '#152808';
+          // Trunk
+          ctx.fillStyle = '#0d1400';
+          ctx.fillRect(tx - 5, fGroundY - 18, 10, 20);
+          // Triangle canopy (3 layers)
+          for (let layer = 0; layer < 3; layer++) {
+            const lh = th * (0.5 - layer*0.1);
+            const lw = tw * (1 - layer*0.25);
+            const lyBot = fGroundY - 18 - layer * (th*0.3);
+            ctx.fillStyle = treeCol;
+            ctx.beginPath();
+            ctx.moveTo(tx, lyBot - lh);
+            ctx.lineTo(tx - lw/2, lyBot);
+            ctx.lineTo(tx + lw/2, lyBot);
+            ctx.closePath();
+            ctx.fill();
+          }
+        });
+        // Fog patches near ground
+        for (let fi = 0; fi < 3; fi++) {
+          const fogX = ((fi * 280 + 60 - bgScroll * 0.15) % (canvas.width+400) + canvas.width+400) % (canvas.width+400) - 200;
+          ctx.fillStyle = 'rgba(200,220,200,0.06)';
+          ctx.beginPath();
+          ctx.ellipse(fogX, fGroundY + 10, 160, 30, 0, 0, Math.PI*2);
+          ctx.fill();
+        }
+        // Undergrowth tufts
+        for (let gi = 0; gi < 20; gi++) {
+          const gx2 = ((gi * 61 + 20 - bgScroll * 0.2) % (canvas.width+80) + canvas.width+80) % (canvas.width+80) - 40;
+          const gh = 8 + (gi%4)*4;
+          ctx.strokeStyle = '#1e3010';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(gx2, fGroundY); ctx.lineTo(gx2-4, fGroundY-gh); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(gx2, fGroundY); ctx.lineTo(gx2, fGroundY-gh-3); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(gx2, fGroundY); ctx.lineTo(gx2+4, fGroundY-gh); ctx.stroke();
+        }
+        // Green vignette overlay
+        const vigGrad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height*0.25, canvas.width/2, canvas.height/2, canvas.width*0.8);
+        vigGrad.addColorStop(0, 'transparent');
+        vigGrad.addColorStop(1, 'rgba(0,20,4,0.35)');
+        ctx.fillStyle = vigGrad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       } else {
         // SPACE (default) — deep space with scrolling stars and nebula
         const spaceBg = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -2628,9 +4101,9 @@
       if ((e.key === 'e' || e.key === 'E') && !e.repeat) {
         useKid();
       }
-      // R: ride / dismount nearest dino
+      // R: ride / dismount — try truck first, then dino
       if ((e.key === 'r' || e.key === 'R') && !e.repeat) {
-        tryRideDino();
+        if (!tryRideTruck()) tryRideDino();
       }
       // 1-4: equip slot
       if (['1','2','3','4'].includes(e.key)) {
@@ -2657,7 +4130,12 @@
         gameOver = true;
         gameoverStats.textContent = `Wave ${wave.number} · ${coins} 🪙 · ${diamonds} 💎`;
         gameoverEl.classList.add('show');
-        wheelSpun = { coin: false, diamond: false };
+        document.getElementById('code-bar').style.display = 'none';
+        bossBarEl.style.display = 'none';
+        // Reset truck state on death
+        monsterTruck  = null;
+        ridingTruck   = false;
+        dinosDisabled = false;
         initWheels();
         return;
       }
@@ -2745,7 +4223,22 @@
       updateParticles();
       updateBullets(dt);
       updateMonsters(dt);
+      // Boss bar update
+      const bossM = monsters.find(m => m.boss);
+      if (bossM) {
+        bossBarEl.style.display = 'block';
+        bossBarLabel.textContent = `\u{1F480} ${getBossName()}`;
+        const bossHpPct = bossM.hp / bossM.maxHp * 100;
+        bossBarFill.style.width = bossHpPct + '%';
+        bossBarText.textContent = `${bossM.hp} / ${bossM.maxHp}`;
+        bossBarFill.style.background = bossHpPct < 30
+          ? 'linear-gradient(90deg,#ff0000,#ff2200)'
+          : 'linear-gradient(90deg,#cc0000,#ff4400,#ff8800)';
+      } else {
+        bossBarEl.style.display = 'none';
+      }
       updateDinosaurs(dt);
+      updateMonsterTruck(dt);
       updateDeathParticles(dt);
       updateShockwaves(dt);
       updateDrops(dt);
@@ -2760,6 +4253,7 @@
       // Draw
       drawBackground();
       drawDinosaurs();
+      drawMonsterTruck();
       drawKidOrbiters();
       drawDrops();
       drawMonsters();
@@ -2852,8 +4346,6 @@
       { label: 'All Weapons',icon: '🎁', color: '#784212', reward: () => { ['rpg','bazooka','sword'].forEach(w=>grantWeapon(w));    return '🎁 All weapons unlocked!'; } },
       { label: '+100 HP',    icon: '💖', color: '#1a5276', reward: () => { egg.hp = Math.min(egg.maxHp, egg.hp + 100);              return '+100 HP!'; } },
     ];
-
-    let wheelSpun = { coin: false, diamond: false };
 
     function drawWheel(canvasEl, segments, rotation) {
       const wctx = canvasEl.getContext('2d');
@@ -2961,11 +4453,12 @@
       drawWheel(wDiamond, DIAMOND_SEGMENTS, 0);
 
       // Live currency labels
-      coinLbl.textContent = `Costs ${COIN_WHEEL_COST} 🪙 · you have ${coins} 🪙`;
-      diamLbl.textContent = `Costs ${DIAMOND_WHEEL_COST} 💎 · you have ${diamonds} 💎`;
+      coinLbl.textContent = `Costs ${COIN_WHEEL_COST} 🪙 · spin until coins run out!`;
+      diamLbl.textContent = `Costs ${DIAMOND_WHEEL_COST} 💎 · spin until diamonds run out!`;
 
+      // ---- Coin wheel: spin repeatedly while coins last ----
       btnC.onclick = () => {
-        if (wheelSpun.coin) return;
+        if (btnC.disabled) return;
         if (coins < COIN_WHEEL_COST) {
           resC.textContent = `Need ${COIN_WHEEL_COST} 🪙 (you have ${coins})`;
           resC.style.color = '#e74c3c';
@@ -2973,13 +4466,21 @@
         }
         coins -= COIN_WHEEL_COST;
         coinCountEl.textContent = coins;
-        coinLbl.textContent = `Spent ${COIN_WHEEL_COST} 🪙 · ${coins} remaining`;
-        wheelSpun.coin = true;
-        spinWheel(wCoin, COIN_SEGMENTS, resC, btnC, () => {});
+        coinLbl.textContent = `${coins} 🪙 remaining — spin again!`;
+        spinWheel(wCoin, COIN_SEGMENTS, resC, btnC, () => {
+          // After spin: re-enable button if still enough coins
+          if (coins >= COIN_WHEEL_COST) {
+            btnC.disabled = false;
+            coinLbl.textContent = `${coins} 🪙 remaining — spin again!`;
+          } else {
+            coinLbl.textContent = `Out of coins 🪙`;
+          }
+        });
       };
 
+      // ---- Diamond wheel: spin repeatedly while diamonds last ----
       btnD.onclick = () => {
-        if (wheelSpun.diamond) return;
+        if (btnD.disabled) return;
         if (diamonds < DIAMOND_WHEEL_COST) {
           resD.textContent = `Need ${DIAMOND_WHEEL_COST} 💎 (you have ${diamonds})`;
           resD.style.color = '#e74c3c';
@@ -2987,9 +4488,15 @@
         }
         diamonds -= DIAMOND_WHEEL_COST;
         diamondCountEl.textContent = diamonds;
-        diamLbl.textContent = `Spent ${DIAMOND_WHEEL_COST} 💎 · ${diamonds} remaining`;
-        wheelSpun.diamond = true;
-        spinWheel(wDiamond, DIAMOND_SEGMENTS, resD, btnD, () => {});
+        diamLbl.textContent = `${diamonds} 💎 remaining — spin again!`;
+        spinWheel(wDiamond, DIAMOND_SEGMENTS, resD, btnD, () => {
+          if (diamonds >= DIAMOND_WHEEL_COST) {
+            btnD.disabled = false;
+            diamLbl.textContent = `${diamonds} 💎 remaining — spin again!`;
+          } else {
+            diamLbl.textContent = `Out of diamonds 💎`;
+          }
+        });
       };
     }
   </script>
